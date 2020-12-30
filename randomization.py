@@ -48,7 +48,7 @@ def encrypt():
         #         ciphertext += encryptor.update(p.update(text.encode())) + encryptor.update(p.finalize())
         #     else:
         #         ciphertext += encryptor.update(p.update(text.encode()))
-    random.shuffle(new_deck)
+    #random.shuffle(new_deck)
 
 def decrypt():
     for tile in new_deck:
@@ -81,4 +81,4 @@ for key, value in cenas.items():
 #     print()
 res = json.dumps(decrypted_deck, cls=MyEncoder)
 print(ps_deck.check(res))
-#print(ps_deck.check_deck(decrypted_deck))
+print(ps_deck.check_deck(decrypted_deck))

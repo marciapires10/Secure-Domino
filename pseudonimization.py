@@ -30,6 +30,8 @@ class pseudonimization:
             tmp.append(elem[0])
         t = recieved_deck   # make a mutable copy
         for i in range(len(recieved_deck)):
+            # print(recieved_deck[i].decode('raw_unicode_escape'))
+            # print(self.ps_deck[i])
             if recieved_deck[i].decode('raw_unicode_escape') != str(self.ps_deck[i]):
                 return False
         return True
