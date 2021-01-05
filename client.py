@@ -1,3 +1,4 @@
+from authentication import savePubKey, writeCSV
 import socket
 import sys
 import pickle
@@ -92,7 +93,8 @@ class client():
             else:
                 winner = Colors.BBlue + winner + Colors.Color_Off
             print(Colors.BGreen+"End GAME, THE WINNER IS: "+winner)
-
+            if data["winner"] == self.player.name:
+                savePubKey(winner)
 
         elif action == "wait":
             print(data["msg"])

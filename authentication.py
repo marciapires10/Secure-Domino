@@ -1,3 +1,6 @@
+import pandas
+
+from os import write
 from PyKCS11 import *
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -7,7 +10,28 @@ from cryptography.hazmat.primitives.asymmetric import (padding ,rsa ,utils)
 
 lib = '/usr/local/lib/libpteidpkcs11.so'
 
-def savePubKey(name):
+
+def writeCSV(winner, pem):
+    olderMember = False
+    df = pandas.read_csv('data.csv')
+
+    count = 0
+    for r in df.values:
+        if r[2] == pem.decode("utf-8"):  #if the person already exist in our DB
+            olderMember = True
+            df.loc[count,'POINTS'] = df.loc[count,'POINTS']+5
+            df.to_csv('data.csv', index = None, header=True)
+        count+=1
+    print()
+    if olderMember==False:
+        text = input("Your Name:")
+        df = df.append({'NAME': text, 'POINTS': '5', 'PUBLIC_KEY': pem.decode("utf-8")}, ignore_index=True)
+        df.to_csv('data.csv', index = None, header=True)
+
+    print(df)
+
+
+def savePubKey(name):                                                                                                                                                                                                                       
     try :
         
         pkcs11 = PyKCS11.PyKCS11Lib()
@@ -24,28 +48,31 @@ def savePubKey(name):
 
                 pubKey = load_der_public_key(bytes(pubKeyDer), default_backend())
                 pem = pubKey.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
-
         
                 #pubKey.verify( signature , data ,padding.PKCS1v15() , hashes.SHA1())
                 print ('Load Pub Key succeeded')
-                saveLogins(pem, name)
+                writeCSV(name, pem)
+                #saveLogins(name, pem)
         return True
     except :
         print ('Insira o cartao')
         return False
 
-def read_from_file():
-    f = open("login.txt", "r")
-    # print(f.read())
-    return f.read()
+# def read_from_file():
+#     f = open("login.txt", "r")
+#     # print(f.read())
+#     return f.read()
 
-def saveLogins(pem, name):
-    key = read_from_file()
-    with open('login.txt', 'w') as f:
-        f.write(key)
-        f.write('\n')
-        f.write(name)
-        f.write("!!")
-        f.write(pem.decode("utf-8"))
+# def saveLogins(name, pem):
+#     key = read_from_file()
+#     with open('login.txt', 'w') as f:
+#         f.write(key)
+#         f.write('\n')
+#         f.write(name)
+#         f.write("!!")
+#         f.write(pem.decode("utf-8"))
         
-        f.close()
+#         f.close()
+
+#writeCSV("OLE2")
+#savePubKey("r2")
