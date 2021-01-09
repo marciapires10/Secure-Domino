@@ -19,6 +19,7 @@ block_size_cbc = algorithms.AES.block_size // 8
 key_map = dict()
 new_deck = []
 decrypted_deck = []
+hand = []
 
 def generate_symmetric_key():
     salt = os.urandom(16)
@@ -39,11 +40,10 @@ def encrypt():
         i = 0
         while i<len(t):
             #aux = encryptor.update(padder.update(tile[0]))
-            aux = encryptor.update(padder.update(msg[i:i+block_size_cbc].encode('utf-8')))
+            aux = encryptor.update(padder.update(t[i:i+block_size_cbc].encode('utf-8')))
             c_text += aux
             i += block_size_cbc
         c_text += encryptor.update(padder.finalize())
-        #print(c_text)
         ciphertext = base64.b64encode(IV) + c_text
 
         # nonce = secrets.token_bytes(12)
@@ -68,47 +68,26 @@ def decrypt():
             plaintext += aux
             i += block_size_cbc
         plaintext += unpadder.finalize()
-        #print(plaintext)
-        #js = json.loads(plaintext)
-        #print(plaintext.decode('utf-8'))
 
         # plaintext = AESGCM(key).decrypt(tile[:12], tile[12:], b"")
-
 
         # cipher = Cipher(algorithms.AES(key_map[tile]), modes.CBC(IV), default_backend())
         # decryptor = cipher.decryptor()
         # u = padding.PKCS7(algorithms.AES.block_size).unpadder()
         # plaintext = decryptor.update(u.update(tile.encode())) + decryptor.finalize()
-        #print(plaintext)
-        #decrypted_deck.append(js)
-        decrypted_deck.append(plaintext)
-    # js = json.dumps(decrypted_deck)
-    # for i in js:
-    #     print(i)
+        decrypted_deck.append(base64.b64encode(plaintext).decode('utf-8'))
+
+def pick_tile():
+    if random.choice([i for i in range(100)]) > 5:
+        return
+    ids = [id for id in range(len(decrypted_deck))]
+    choice = random.choice(ids)
+    decrypted_deck.pop(decrypted_deck[choice])
+    hand.append(decrypted_deck[choice])
 
 encrypt()
 decrypt()
-#json_c = json.dumps(key_map, cls=MyEncoder)
-#cenas = json.loads(json_c)
-tmp = []
-tmp2 = []
-# for key, value in key_map.items():
-#     tmp.append(value)
-# for key, value in cenas.items():
-#     tmp2.append(value)
-# for j in range(len(tmp)):
-#     print(tmp[j])
-#     x = tmp2[j].encode('raw_unicode_escape')
-#     print(x)
-#     if tmp[j] == x:
-#         print(True)
-#     print()
-#res = json.dumps(decrypted_deck, cls=MyEncoder)
-#print(ps_deck.check(res))
-for i in decrypted_deck:
-    print(i.decode('utf-8'))
-# for i in decrypted_deck:
-#     print(i)
-# js = json.dumps(decrypted_deck)
-# for i in js:
-#     print(i)
+string = dict()
+string['msg'] = decrypted_deck
+msg = json.dumps(string)
+print(ps_deck.check(msg))
