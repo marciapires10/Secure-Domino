@@ -21,7 +21,6 @@ class pseudonimization:
             res = digest.finalize()
             self.pi[res] = [ki, i]
             self.ps_deck.append([res, i])
-
         return self.ps_deck
 
     def check_deck(self, recieved_deck):
