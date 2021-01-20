@@ -52,7 +52,7 @@ def encrypt():
         key_map[(ciphertext)] = key
         new_deck.append(ciphertext)
         
-    #random.shuffle(new_deck)
+    random.shuffle(new_deck)
 
 def decrypt():
     for ciphertext in new_deck:
