@@ -1,12 +1,20 @@
 from authentication import savePubKey, writeCSV
 import socket
+import os
 import sys
 import pickle
-
+import json
+import base64
 import Colors
 import string
 from deck_utils import Player
 import random
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding, hashes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
 
 class client():
     def __init__(self, host, port):
@@ -16,6 +24,18 @@ class client():
         first_msg = {"action": "hello"}
         self.sock.send(pickle.dumps(first_msg))
         self.player = None
+        #-------added-------------
+        self.next_player = None	
+        self.first_player = None
+        self.last_player = None
+        #-----messages------------
+        self.msg = dict()
+        #-------------------------
+        #----client vars---------
+        self.p_deck = []
+        self.block_size_cbc = algorithms.AES.block_size // 8
+        self.key_map = dict()
+        self.p_hand = []
         self.receiveData()
 
     def receiveData(self):
@@ -63,6 +83,7 @@ class client():
             self.player.pieces_per_player = data["pieces_per_player"]
             self.player.in_table = data["in_table"]
             self.player.deck = data["deck"]
+            self.p_deck = data["deck"] #added
             player_name = data["next_player"]
             if data["next_player"] == self.player.name:
                 player_name = Colors.BRed + "YOU" + Colors.Color_Off
@@ -85,6 +106,20 @@ class client():
                     #input(Colors.BGreen+"Press ENter \n\n"+Colors.Color_Off)
                     msg = self.player.play()
                     self.sock.send(pickle.dumps(msg))
+
+        elif action == "scrumble":
+            cipher_deck = self.cipher(self.p_deck)
+            return
+
+        elif action == "pick":
+            if len(self.p_hand) < self.player.pieces_per_player:
+                self.p_deck = self.pick_tile(self.p_deck)
+            else:
+                return
+
+        elif action == "decipher":
+            self.p_deck = self.decipher(self.p_deck)
+            return
 
         elif action == "end_game":
             winner = data["winner"]
@@ -112,12 +147,30 @@ class client():
             self.sock.close()
             print("PRESS ANY KEY TO EXIT ")
             sys.exit(0)
+    #------------------------------added----------------------------
+    def generate_symmetric_key(self):
+        salt = os.urandom(16)
+        kdf = PBKDF2HMAC(hashes.SHA512(), 32, salt, 100000, default_backend())
+        key = kdf.derive(os.urandom(16))
+        return key
 
         elif action == "agreement_result":
             print("Result:" + str(data["agreement_result"]))
             if str(data["agreement_result"]) == "Aproved":
                 savePubKey(self.player.name, self.player.score)
 
-
+    def pick_tile(self, decrypted_deck):
+        prob = random.choice([i for i in range(100)])
+        ids = [id for id in range(len(decrypted_deck))]
+        if prob > 5:
+            if prob > 52.5 and len(self.p_hand) > 0:
+                hand_ids = [id for id in range(len(self.p_hand))]
+                decrypted_deck.append(self.p_hand.pop(random.choice(hand_ids)))
+                self.p_hand.append(decrypted_deck.pop(random.choice(ids)))
+            return decrypted_deck
+        else:
+            self.p_hand.append(decrypted_deck.pop(random.choice(ids)))
+            return decrypted_deck
+    #------------------------------------------------------------------------------------
 
 a = client('localhost', 50000)
