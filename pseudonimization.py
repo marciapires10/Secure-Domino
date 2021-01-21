@@ -1,9 +1,9 @@
 import os
 import json
 import base64
+import pickle
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
-from byte_encoder import *
 
 class pseudonimization:
     def __init__(self, deck):
@@ -21,24 +21,16 @@ class pseudonimization:
             
             res = digest.finalize()
             self.pi[res] = [ki, i]
-            self.ps_deck.append([res, i])
-        return self.ps_deck
-
-    def check_deck(self, recieved_deck):
-        tmp = []
-        for elem in self.ps_deck:
-            tmp.append(elem[0])
-        t = recieved_deck   # make a mutable copy
-        for i in range(len(recieved_deck)):
-            if recieved_deck[i].decode('raw_unicode_escape') != str(self.ps_deck[i]):
-                return False
-        return True
+            self.ps_deck.append((res, i))
+        string = dict()
+        string.update({'msg':self.ps_deck})
+        return pickle.dumps(string)
 
     def check(self, msg):
-        c_deck = json.loads(msg)['msg']
+        c_deck = pickle.loads(msg)['msg']
         r_deck = []
         for i in c_deck:
-            r_deck.append(base64.b64decode(i.encode('utf-8')).decode('utf-8'))
+            r_deck.append(base64.b64decode(i).decode('utf-8'))
         tmp = []
         for i in self.ps_deck:
             tmp.append(str(i))
@@ -48,4 +40,4 @@ class pseudonimization:
                 r_deck.remove(i)
             else:
                 return False
-        return r_deck==[]
+        return r_deck == []

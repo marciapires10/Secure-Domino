@@ -12,6 +12,9 @@ class Game:
         self.next_action="get_piece"
         self.started = False
         self.all_ready_to_play = False
+        #----------added--------------
+        self.scrumbled = 0
+        self.deciphered = 0
 
     def checkDeadLock(self):
         return all([ player.nopiece for player in self.players ])

@@ -1,4 +1,14 @@
 import random
+import os
+import json
+import pickle
+import base64
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives import padding, hashes
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 class Player:
@@ -12,8 +22,15 @@ class Player:
         self.pieces_per_player=pieces_per_player
         self.ready_to_play = False
         self.in_table = []
-        self.deck = []
         self.nopiece = False
+        #-------added-------------
+        self.deck = []
+        self.ciphered_deck = []
+        self.deciphered_deck = []
+        self.key_map = dict()
+        self.first = 0
+        self.last = 0
+
 
     def __str__(self):
         return str(self.toJson())
@@ -103,6 +120,61 @@ class Player:
         print("Self score: " + str(self.score))
         return res
 
+    #--------------------added----------------------------------------
+
+    def generate_symmetric_key(self):
+        salt = os.urandom(16)
+        kdf = PBKDF2HMAC(hashes.SHA512(), 32, salt, 100000, default_backend())
+        key = kdf.derive(os.urandom(16))
+        return key
+
+    def cipher_tiles(self, mode, tiles):
+        for tile in tiles:
+            key = generate_symmetric_key()
+            IV = os.urandom(algorithms.AES.block_size // 8)
+            cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
+            padder = padding.PKCS7(algorithms.AES.block_size).padder()
+            encryptor = cipher.encryptor()
+            c_text = b''
+            if mode == 0:
+                t = str(tile)
+            else:
+                t = base64.b64decode(tile)
+            i = 0
+            while i<len(t):
+                if mode == 0:
+                    aux = encryptor.update(padder.update(t[i:i+(algorithms.AES.block_size // 8)].encode('utf-8')))
+                else:
+                    aux = encryptor.update(padder.update(t[i:i+(algorithms.AES.block_size // 8)]))
+                c_text += aux
+                i += algorithms.AES.block_size // 8
+            c_text += encryptor.update(padder.finalize())
+            ciphertext = base64.b64encode(IV + c_text)
+            self.key_map[ciphertext] = key
+            self.ciphered_deck.append(ciphertext)
+        random.shuffle(self.ciphered_deck)
+
+    def decipher_tiles(self, tiles):
+        for ciphertext in tiles:
+            c = base64.b64decode(ciphertext)
+            key = key_map[ciphertext]
+            IV, c_text = c[:16], c[16:]
+            cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
+            unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+            decryptor = cipher.decryptor()
+            plaintext = b''
+            i = 16
+            plaintext = unpadder.update(decryptor.update(c_text)) + unpadder.finalize()
+            self.deciphered_deck.append(base64.b64encode(plaintext))
+
+    def pick_tile(self):
+        if random.choice([i for i in range(100)]) > 5:
+            return
+        ids = [id for id in range(len(self.deciphered_deck))]
+        choice = random.choice(ids)
+        self.deciphered_deck.pop(self.deciphered_deck[choice])
+        hand.append(self.deciphered_deck[choice])
+
 class Piece:
     values = []
 
@@ -126,17 +198,49 @@ class SubPiece:
 class Deck:
 
     deck = []
+    ps_deck = []
+    pseudonym_map = dict()
 
     def __init__(self,pieces_per_player=5):
         with open('pieces', 'r') as file:
             pieces = file.read()
         for piece in pieces.split(","):
             piece = piece.replace(" ", "").split("-")
-            self.deck.append(Piece(piece[0], piece[1]))
+            p = Piece(piece[0], piece[1]) #added
+            self.pseudo_deck() #added
+            self.deck.append(p) #altered
 
         self.npieces = len(self.deck)
         self.pieces_per_player = pieces_per_player
         self.in_table = []
+    #--------------------------------added-------------------------------
+    def pseudo_deck(self):
+        for i in range(len(self.deck)):
+            ki = os.urandom(32)
+            digest = hashes.Hash(hashes.SHA256(), default_backend())
+            digest.update(self.deck[i].encode('utf-8'))
+            digest.update(ki)
+            digest.update(bytes(i))
+            res = digest.finalize()
+            self.pseudonym_map.update({res: [ki, i]})
+            self.ps_deck.append((res, i))
+
+    def check(self, msg):
+        c_deck = pickle.loads(msg)['msg']
+        r_deck = []
+        for i in c_deck:
+            r_deck.append(base64.b64decode(i).decode('utf-8'))
+        tmp = []
+        for i in self.ps_deck:
+            tmp.append(str(i))
+        c_deck = r_deck
+        for i in tmp:
+            if i in r_deck:
+                r_deck.remove(i)
+            else:
+                return False
+        return r_deck == []
+    #--------------------------------------------------------------------
 
     def __str__(self):
         a = ""
