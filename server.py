@@ -191,6 +191,17 @@ class TableManager:
                     if data["piece"]is not None:
                         player.nopiece = False
                         player.updatePieces(-1)
+
+                        ## Check if piece is not on deck
+                        try:
+                            if self.check_piece_in_deck(data["piece"], self.game.deck.deck):
+                                print(str(self.game.currentPlayer().name) + " is cheating.")
+                            else:
+                                print(str(self.game.currentPlayer().name) + " is not cheating.")
+                        except:
+                            print("Deck problems")
+
+
                         if data["edge"]==0:
                             self.game.deck.in_table.insert(0,data["piece"])
                         else:
@@ -251,6 +262,10 @@ class TableManager:
         print("Disconnecting Server ")
         self.server.close()
         sys.exit(0)
+    
+    # Cheating mechanism
+    def check_piece_in_deck(self,piece,deck):
+        return piece in deck
 
 try:
     NUM_PLAYERS = int(sys.argv[1])

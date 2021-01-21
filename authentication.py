@@ -56,7 +56,6 @@ def savePubKey(name, score):
                 #saveLogins(name, pem)
         return True
     except :
-        writeCSVTomas(name, score)
         print ('Insira o cartao')
         return False
 

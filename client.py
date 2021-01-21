@@ -147,17 +147,17 @@ class client():
             self.sock.close()
             print("PRESS ANY KEY TO EXIT ")
             sys.exit(0)
+
+        elif action == "agreement_result":
+            print("Result:" + str(data["agreement_result"]))
+            if str(data["agreement_result"]) == "Aproved":
+                savePubKey(self.player.name, self.player.score)
     #------------------------------added----------------------------
     def generate_symmetric_key(self):
         salt = os.urandom(16)
         kdf = PBKDF2HMAC(hashes.SHA512(), 32, salt, 100000, default_backend())
         key = kdf.derive(os.urandom(16))
         return key
-
-        elif action == "agreement_result":
-            print("Result:" + str(data["agreement_result"]))
-            if str(data["agreement_result"]) == "Aproved":
-                savePubKey(self.player.name, self.player.score)
 
     def pick_tile(self, decrypted_deck):
         prob = random.choice([i for i in range(100)])
