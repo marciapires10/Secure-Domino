@@ -28,7 +28,7 @@ class TableManager:
         #disconnecting players when CTRL + C is pressed
         signal.signal(signal.SIGINT, self.signal_handler)
         #signal.pause()
-
+        self.agreement_players = dict()
         print("Server is On")
 
         # configuration for select()
@@ -150,6 +150,23 @@ class TableManager:
                 msg.update(self.game.toJson())
                 return pickle.dumps(msg)
 
+            elif action == "agreement":
+                    self.agreement_players[data["player"]] = data["choice"]
+                    if len(self.agreement_players) >= len(self.game.players):
+                        for player in self.agreement_players:
+                            if self.agreement_players[player] == "n":
+                                print("Not aproved")
+                                msg = {"action": "agreement_result", "agreement_result": "Not Aproved"}
+                                self.send_all(msg,sock)
+                                return pickle.dumps(msg)  
+                        print("Result Aproved")
+                        msg = {"action": "agreement_result", "agreement_result": "Aproved"} 
+                        self.send_all(msg,sock)
+                    else:
+                        print("Aproving")
+                        msg = {"action": "agreement_result", "agreement_result": "Waiting for Response."}
+                    return pickle.dumps(msg)
+
             player = self.game.currentPlayer()
             #check if the request is from a valid player
             if  sock == player.socket:
@@ -168,6 +185,8 @@ class TableManager:
                     self.send_all(msg,sock)
 
                 elif action == "play_piece":
+                    score = str(data["score"])
+                    self.game.currentPlayer().score = score
                     next_p = self.game.nextPlayer()
                     if data["piece"]is not None:
                         player.nopiece = False
@@ -184,18 +203,27 @@ class TableManager:
                     if data["win"]:
                         if player.checkifWin():
                             print(Colors.BGreen+" WINNER "+player.name+Colors.Color_Off)
-                            msg = {"action": "end_game","winner":player.name}
+                            print(Colors.BGreen+" SCORE: "+ score +Colors.Color_Off)
+                            players_score = dict()
+                            for p in self.game.players:
+                                players_score[p.name] = p.score
+                            msg = {"action": "end_game","winner":player.name, "players": players_score}
+
                     else:
                         msg = {"action": "rcv_game_propreties"}
                     msg.update(self.game.toJson())
                     self.send_all(msg,sock)
                 #no pieces to pick
                 elif action == "pass_play":
+                    score = str(data["score"])
+                    self.game.currentPlayer().score = score
                     self.game.nextPlayer()
                     #If the player passed the previous move
                     if player.nopiece:
-                        print("No piece END")
-                        msg = {"action": "end_game", "winner": Colors.BYellow+"TIE"+Colors.Color_Off}
+                        players_score = dict()
+                        for p in self.game.players:
+                            players_score[p.name] = p.score
+                        msg = {"action": "end_game", "winner": Colors.BYellow+"TIE"+Colors.Color_Off, "players": players_score}
                     #Update the variable nopiece so that the server can know if the player has passed the previous move
                     else:
                         print("No piece")

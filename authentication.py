@@ -11,27 +11,28 @@ from cryptography.hazmat.primitives.asymmetric import (padding ,rsa ,utils)
 lib = '/usr/local/lib/libpteidpkcs11.so'
 
 
-def writeCSV(winner, pem):
+def writeCSV(winner, pem, score):
     olderMember = False
+    text = input("Your Name:")
     df = pandas.read_csv('data.csv')
-
     count = 0
     for r in df.values:
         if r[2] == pem.decode("utf-8"):  #if the person already exist in our DB
             olderMember = True
-            df.loc[count,'POINTS'] = df.loc[count,'POINTS']+5
+            df.loc[count,'POINTS'] = df.loc[count,'POINTS']+score
+            print("DF: " + str(df))
             df.to_csv('data.csv', index = None, header=True)
         count+=1
     print()
     if olderMember==False:
-        text = input("Your Name:")
-        df = df.append({'NAME': text, 'POINTS': '5', 'PUBLIC_KEY': pem.decode("utf-8")}, ignore_index=True)
+        df = df.append({'NAME': text, 'POINTS': str(score), 'PUBLIC_KEY': pem.decode("utf-8")}, ignore_index=True)
+        print("DF: " + str(df))
         df.to_csv('data.csv', index = None, header=True)
 
     print(df)
 
 
-def savePubKey(name):                                                                                                                                                                                                                       
+def savePubKey(name, score):                                                                                                                                     
     try :
         
         pkcs11 = PyKCS11.PyKCS11Lib()
@@ -51,10 +52,11 @@ def savePubKey(name):
         
                 #pubKey.verify( signature , data ,padding.PKCS1v15() , hashes.SHA1())
                 print ('Load Pub Key succeeded')
-                writeCSV(name, pem)
+                writeCSV(name, pem, score)
                 #saveLogins(name, pem)
         return True
     except :
+        writeCSVTomas(name, score)
         print ('Insira o cartao')
         return False
 

@@ -49,11 +49,12 @@ class Player:
 
     def play(self):
         res = {}
+        self.score += 1
         if self.in_table == []:
             print("Empty table")
             piece = self.hand.pop()
             self.updatePieces(-1)
-            res = {"action": "play_piece","piece":piece,"edge":0,"win":False}
+            res = {"action": "play_piece","piece":piece,"edge":0,"win":False, "score": self.score}
         else:
             edges = self.in_table[0].values[0].value, self.in_table[len(self.in_table) - 1].values[1].value
             print(str(edges[0])+" "+str(edges[1]))
@@ -91,14 +92,15 @@ class Player:
                 if flip:
                     piece.flip()
                 self.updatePieces(-1)
-                res = {"action": "play_piece", "piece": piece,"edge":edge,"win":self.checkifWin()}
+                res = {"action": "play_piece", "piece": piece,"edge":edge,"win":self.checkifWin(), "score": self.score}
             # if there is no piece to play try to pick a piece, if there is no piece to pick pass
             else:
                 if len(self.deck)>0:
                     res = self.pickPiece()
                 else:
-                    res = {"action": "pass_play", "piece": None, "edge": edge,"win":self.checkifWin()}
-            print("To play -> "+str(piece))
+                    res = {"action": "pass_play", "piece": None, "edge": edge,"win":self.checkifWin(), "score": self.score}
+            # print("To play -> "+str(piece))
+        print("Self score: " + str(self.score))
         return res
 
 class Piece:

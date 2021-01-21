@@ -93,8 +93,17 @@ class client():
             else:
                 winner = Colors.BBlue + winner + Colors.Color_Off
             print(Colors.BGreen+"End GAME, THE WINNER IS: "+winner)
-            if data["winner"] == self.player.name:
-                savePubKey(winner)
+            
+            # Check Agreement
+            agreement = ""
+            while( agreement != "y" and agreement != "n"):
+                agreement_input = str(input("Do you agree with this result? (Y/n)"))
+                agreement = agreement_input.lower()
+                while(" " in agreement):
+                    agreement = agreement.replace(" ","")
+            msg = {"action": "agreement","player": self.player.name, "choice":agreement}
+            self.sock.send(pickle.dumps(msg))
+
 
         elif action == "wait":
             print(data["msg"])
@@ -104,6 +113,10 @@ class client():
             print("PRESS ANY KEY TO EXIT ")
             sys.exit(0)
 
+        elif action == "agreement_result":
+            print("Result:" + str(data["agreement_result"]))
+            if str(data["agreement_result"]) == "Aproved":
+                savePubKey(self.player.name, self.player.score)
 
 
 
