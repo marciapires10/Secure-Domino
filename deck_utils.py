@@ -182,7 +182,7 @@ class Piece:
         self.values = [SubPiece(first), SubPiece(second)]
 
     def __str__(self):
-        return " {}:{}".format(str(self.values[0]),str(self.values[1]))
+        return "{}:{}".format(str(self.values[0]),str(self.values[1]))
 
     def flip(self):
         self.values = [self.values[1], self.values[0]]
@@ -198,6 +198,7 @@ class SubPiece:
 class Deck:
 
     deck = []
+    deck2 = []
     ps_deck = []
     pseudonym_map = dict()
 
@@ -207,6 +208,7 @@ class Deck:
         for piece in pieces.split(","):
             piece = piece.replace(" ", "").split("-")
             p = Piece(piece[0], piece[1]) #added
+            self.deck2.append(str(p))
             self.pseudo_deck() #added
             self.deck.append(p) #altered
 
@@ -215,7 +217,7 @@ class Deck:
         self.in_table = []
     #--------------------------------added-------------------------------
     def pseudo_deck(self):
-        for i in range(len(self.deck)):
+        for i in range(len(self.deck2)):
             ki = os.urandom(32)
             digest = hashes.Hash(hashes.SHA256(), default_backend())
             digest.update(self.deck[i].encode('utf-8'))
