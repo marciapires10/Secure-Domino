@@ -130,7 +130,7 @@ class Player:
 
     def cipher_tiles(self, mode, tiles):
         for tile in tiles:
-            key = generate_symmetric_key()
+            key = self.generate_symmetric_key()
             IV = os.urandom(algorithms.AES.block_size // 8)
             cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
             padder = padding.PKCS7(algorithms.AES.block_size).padder()
