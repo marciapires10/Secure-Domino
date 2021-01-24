@@ -209,9 +209,9 @@ class Deck:
             piece = piece.replace(" ", "").split("-")
             p = Piece(piece[0], piece[1]) #added
             self.deck2.append(str(p))
-            self.pseudo_deck() #added
             self.deck.append(p) #altered
 
+        self.pseudo_deck() #added
         self.npieces = len(self.deck)
         self.pieces_per_player = pieces_per_player
         self.in_table = []
@@ -220,7 +220,7 @@ class Deck:
         for i in range(len(self.deck2)):
             ki = os.urandom(32)
             digest = hashes.Hash(hashes.SHA256(), default_backend())
-            digest.update(self.deck[i].encode('utf-8'))
+            digest.update(self.deck2[i].encode('utf-8'))
             digest.update(ki)
             digest.update(bytes(i))
             res = digest.finalize()
