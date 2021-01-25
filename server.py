@@ -37,12 +37,8 @@ class TableManager:
         # configuration for select()
         self.inputs = [self.server]  # sockets where we read
         self.outputs = []  # sockets where we write
-
         self.message_queue = {}  # queue of messages
 
-        #------------added-------------------------
-        self.scrumble_player_list = []
-        self.decipher_player_list = []
 
         while self.inputs:
             readable, writeable, exceptional = select.select(self.inputs, self.outputs, self.inputs)
@@ -142,12 +138,6 @@ class TableManager:
 
                             #check if table is full
                             if self.game.isFull():
-                                #-------------------------------added-------------------------------------
-                                self.scrumble_player_list = self.game.players
-                                self.decipher_player_list = self.scrumble_player_list[::-1]
-                                print("cipher order: " + str(self.scrumble_player_list))
-                                print("decipher order: " + str(self.decipher_player_list))
-                                #-------------------------------------------------------------------------
                                 print(Colors.BIPurple+"The game is Full"+Colors.Color_Off)
                                 msg = {"action": "waiting_for_host", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off}
                                 self.send_all(msg,sock)
@@ -161,33 +151,33 @@ class TableManager:
             if action == "start_game":
                 # msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                 # self.send_all(msg,sock)
-                player = self.scrumble_player_list.pop(0)
-                msg = {"action": "scrumble_first", "deck": self.game.deck.ps_deck}
+                player = self.game.currentPlayer()
+                msg = {"action": "scrumble", "deck": self.game.deck.ps_deck}
                 self.send_to(msg, player)
                 return
             #----------------------------------------------------------------
             #------------------------added-------------------------------
             if action == "scrumbled":
-                if self.scrumble_player_list == []:
+                if self.game.player_index == self.game.max_players-1:
                     self.game.scrumbled = 1
-                    player = self.decipher_player_list.pop(0)
-                    msg = {"action": "decipher", "deck": data["deck"]}
-                    self.send_to(msg, player)
-                    return
-                else:
-                    player = self.scrumble_player_list.pop(0)
-                    msg = {"action": "scrumble", "deck": data["deck"]}
-                    self.send_to(msg, player)
-                    return
-
-            if action == "deciphered":
-                if self.decipher_player_list == []:
-                    input("wait")
+                    player = self.game.nextPlayer()
                     msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                     self.send_all(msg,sock)
                     return pickle.dumps(msg)
                 else:
-                    player = self.decipher_player_list.pop(0)
+                    player = self.game.nextPlayer()
+                    msg = {"action": "scrumble", "deck": data["deck"]}
+                    self.send_to(msg, player)
+                    return
+            if action == "selected":
+                return
+            if action == "deciphered":
+                if self.decipher_player_list == []:
+                    msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
+                    self.send_all(msg,sock)
+                    return pickle.dumps(msg)
+                else:
+                    player = self.self.game.nextPlayer()
                     msg = {"action": "decipher", "deck": data["deck"]}
                     self.send_to(msg, player)
                     return

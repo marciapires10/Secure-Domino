@@ -64,15 +64,9 @@ class client():
             else:
                 print(data["msg"])
         #---------------added----------------------------
-        elif data["action"]=="scrumble_first":
-            scrumble_deck = data["deck"]
-            self.player.cipher_tiles(0, scrumble_deck)
-            print("deck cifrado "+str(self.player.ciphered_deck))
-            msg = {"action": "scrumbled", "deck": self.player.ciphered_deck}
-            self.sock.send(pickle.dumps(msg))
         elif data["action"]=="scrumble":
             scrumble_deck = data["deck"]
-            self.player.cipher_tiles(1, scrumble_deck)
+            self.player.cipher_tiles(scrumble_deck)
             print("deck cifrado "+str(self.player.ciphered_deck))
             msg = {"action": "scrumbled", "deck": self.player.ciphered_deck}
             self.sock.send(pickle.dumps(msg))

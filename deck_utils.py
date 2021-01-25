@@ -128,28 +128,31 @@ class Player:
         key = kdf.derive(os.urandom(16))
         return key
 
-    def cipher_tiles(self, mode, tiles):
+    def cipher_tiles(self, tiles):
         for tile in tiles:
-            key = self.generate_symmetric_key()
-            IV = os.urandom(algorithms.AES.block_size // 8)
-            cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
-            padder = padding.PKCS7(algorithms.AES.block_size).padder()
-            encryptor = cipher.encryptor()
-            c_text = b''
-            if mode == 0:
-                t = str(tile)
-            else:
-                t = base64.b64decode(tile)
-            i = 0
-            while i<len(t):
-                if mode == 0:
-                    aux = encryptor.update(padder.update(t[i:i+(algorithms.AES.block_size // 8)].encode('utf-8')))
+            check = True
+            while check:
+                key = self.generate_symmetric_key()
+                IV = os.urandom(algorithms.AES.block_size // 8)
+                cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
+                padder = padding.PKCS7(algorithms.AES.block_size).padder()
+                encryptor = cipher.encryptor()
+                c_text = b''
+                if self.host:
+                    t = str(tile)
                 else:
-                    aux = encryptor.update(padder.update(t[i:i+(algorithms.AES.block_size // 8)]))
-                c_text += aux
-                i += algorithms.AES.block_size // 8
-            c_text += encryptor.update(padder.finalize())
-            ciphertext = base64.b64encode(IV + c_text)
+                    t = base64.b64decode(tile)
+                i = 0
+                while i<len(t):
+                    if self.host:
+                        aux = encryptor.update(padder.update(t[i:i+(algorithms.AES.block_size // 8)].encode('utf-8')))
+                    else:
+                        aux = encryptor.update(padder.update(t[i:i+(algorithms.AES.block_size // 8)]))
+                    c_text += aux
+                    i += algorithms.AES.block_size // 8
+                c_text += encryptor.update(padder.finalize())
+                ciphertext = base64.b64encode(IV + c_text)
+                check = ciphertext in self.key_map
             self.key_map[ciphertext] = key
             self.ciphered_deck.append(ciphertext)
         random.shuffle(self.ciphered_deck)
