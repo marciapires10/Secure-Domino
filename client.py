@@ -33,7 +33,7 @@ class client():
 
     def receiveData(self):
         while True:
-            data = self.sock.recv(4096)
+            data = self.sock.recv(16384)
             if data:
                 self.handle_data(data)
 
@@ -68,21 +68,21 @@ class client():
             scrumble_deck = data["deck"]
             self.player.cipher_tiles(0, scrumble_deck)
             print("deck cifrado "+str(self.player.ciphered_deck))
-            msg = {"action": "scrumbled", "deck": self.player.cipher_deck}
+            msg = {"action": "scrumbled", "deck": self.player.ciphered_deck}
             self.sock.send(pickle.dumps(msg))
         elif data["action"]=="scrumble":
             scrumble_deck = data["deck"]
             self.player.cipher_tiles(1, scrumble_deck)
             print("deck cifrado "+str(self.player.ciphered_deck))
-            msg = {"action": "scrumbled", "deck": self.player.cipher_deck}
+            msg = {"action": "scrumbled", "deck": self.player.ciphered_deck}
             self.sock.send(pickle.dumps(msg))
         elif data["action"]=="decipher":
             decipher_deck = data["deck"] 
             self.player.decipher_tiles(decipher_deck)
-            print("deck decifrado "+str(self.player.decipher_deck))
+            print("deck decifrado "+str(self.player.deciphered_deck))
             msg = {"action": "deciphered", "deck": self.player.deciphered_deck}
             self.sock.send(pickle.dumps(msg))
-
+        #-------------------------------------------------------------------------
         elif action == "host_start_game":
             print(data["msg"])
             msg = {"action": "get_game_propreties"}

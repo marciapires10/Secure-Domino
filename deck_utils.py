@@ -157,7 +157,7 @@ class Player:
     def decipher_tiles(self, tiles):
         for ciphertext in tiles:
             c = base64.b64decode(ciphertext)
-            key = key_map[ciphertext]
+            key = self.key_map[ciphertext]
             IV, c_text = c[:16], c[16:]
             cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
             unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
@@ -182,7 +182,7 @@ class Piece:
         self.values = [SubPiece(first), SubPiece(second)]
 
     def __str__(self):
-        return "{}:{}".format(str(self.values[0]),str(self.values[1]))
+        return "{}:{}".format(str(self.values[0].value),str(self.values[1].value))
 
     def flip(self):
         self.values = [self.values[1], self.values[0]]
@@ -208,10 +208,12 @@ class Deck:
         for piece in pieces.split(","):
             piece = piece.replace(" ", "").split("-")
             p = Piece(piece[0], piece[1]) #added
-            self.deck2.append(str(p))
+            self.deck2.append(p.__str__()) #added
             self.deck.append(p) #altered
 
         self.pseudo_deck() #added
+        print("tiles: " + str(self.deck2))
+        print("pseudonyms: " + str(self.ps_deck))
         self.npieces = len(self.deck)
         self.pieces_per_player = pieces_per_player
         self.in_table = []

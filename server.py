@@ -55,12 +55,13 @@ class TableManager:
                     self.message_queue[connection] = queue.Queue()
 
                 else:  # We are receiving data from a client socket
-                    data = sock.recv(4096)
+                    data = sock.recv(16384)
                     if data:
                         to_send = self.handle_action(data, sock)
-                        self.message_queue[sock].put(to_send)  # add our response to the queue
-                        if sock not in self.outputs:
-                            self.outputs.append(sock)  # add this socket to the writeable sockets
+                        if to_send != None:
+                            self.message_queue[sock].put(to_send)  # add our response to the queue
+                            if sock not in self.outputs:
+                                self.outputs.append(sock)  # add this socket to the writeable sockets
                     else:
                         if sock in self.outputs:
                             self.outputs.remove(sock)
@@ -97,7 +98,7 @@ class TableManager:
     def send_to(self, msg, player):
         if player.socket is None:
             socket=self.server
-
+        print("send to: " + str(player.name) + " action: " + msg["action"])
         self.message_queue[player.socket].put(pickle.dumps(msg))
         if player.socket not in self.outputs:
             self.outputs.append(player.socket)
@@ -142,8 +143,10 @@ class TableManager:
                             #check if table is full
                             if self.game.isFull():
                                 #-------------------------------added-------------------------------------
-                                self.scrumble_player_list = self.decipher_player_list = self.game.players
-                                self.decipher_player_list.reverse()
+                                self.scrumble_player_list = self.game.players
+                                self.decipher_player_list = self.scrumble_player_list[::-1]
+                                print("cipher order: " + str(self.scrumble_player_list))
+                                print("decipher order: " + str(self.decipher_player_list))
                                 #-------------------------------------------------------------------------
                                 print(Colors.BIPurple+"The game is Full"+Colors.Color_Off)
                                 msg = {"action": "waiting_for_host", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off}
@@ -161,7 +164,7 @@ class TableManager:
                 player = self.scrumble_player_list.pop(0)
                 msg = {"action": "scrumble_first", "deck": self.game.deck.ps_deck}
                 self.send_to(msg, player)
-                return pickle.dumps(msg)
+                return
             #----------------------------------------------------------------
             #------------------------added-------------------------------
             if action == "scrumbled":
@@ -170,15 +173,16 @@ class TableManager:
                     player = self.decipher_player_list.pop(0)
                     msg = {"action": "decipher", "deck": data["deck"]}
                     self.send_to(msg, player)
-                    return pickle.dumps(msg)
+                    return
                 else:
                     player = self.scrumble_player_list.pop(0)
                     msg = {"action": "scrumble", "deck": data["deck"]}
                     self.send_to(msg, player)
-                    return pickle.dumps(msg)
+                    return
 
             if action == "deciphered":
                 if self.decipher_player_list == []:
+                    input("wait")
                     msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                     self.send_all(msg,sock)
                     return pickle.dumps(msg)
@@ -186,10 +190,11 @@ class TableManager:
                     player = self.decipher_player_list.pop(0)
                     msg = {"action": "decipher", "deck": data["deck"]}
                     self.send_to(msg, player)
-                    return pickle.dumps(msg)
+                    return
             #-------------------------------------------------------------
 
             if action == "ready_to_play":
+                input("wait")
                 msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                 self.send_all(msg,sock)
                 return pickle.dumps(msg)
