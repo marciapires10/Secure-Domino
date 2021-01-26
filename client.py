@@ -30,10 +30,11 @@ class client():
         self.key_map = dict()
         self.p_hand = []
         self.receiveData()
+        self.players = [] #list of players
 
     def receiveData(self):
         while True:
-            data = self.sock.recv(16384)
+            data = self.sock.recv(32768)
             if data:
                 self.handle_data(data)
 
@@ -45,7 +46,7 @@ class client():
             nickname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) #input(data["msg"])
             print("Your name is "+Colors.BBlue+nickname+Colors.Color_Off)
             msg = {"action": "req_login", "msg": nickname}
-            self.player = Player(nickname,self.sock)
+            self.player = Player(nickname,self.sock,data["max_pieces"])
             self.sock.send(pickle.dumps(msg))
             return
             # todo login
@@ -67,14 +68,16 @@ class client():
         elif data["action"]=="scrumble":
             scrumble_deck = data["deck"]
             self.player.cipher_tiles(scrumble_deck)
-            print("deck cifrado "+str(self.player.ciphered_deck))
             msg = {"action": "scrumbled", "deck": self.player.ciphered_deck}
             self.sock.send(pickle.dumps(msg))
         elif data["action"]=="decipher":
             decipher_deck = data["deck"] 
             self.player.decipher_tiles(decipher_deck)
-            print("deck decifrado "+str(self.player.deciphered_deck))
             msg = {"action": "deciphered", "deck": self.player.deciphered_deck}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "select":
+            tiles = self.player.pick_tile(data["deck"])
+            msg = {"action": "selected", "deck": tiles}
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------
         elif action == "host_start_game":

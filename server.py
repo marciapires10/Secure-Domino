@@ -51,7 +51,7 @@ class TableManager:
                     self.message_queue[connection] = queue.Queue()
 
                 else:  # We are receiving data from a client socket
-                    data = sock.recv(16384)
+                    data = sock.recv(32768)
                     if data:
                         to_send = self.handle_action(data, sock)
                         if to_send != None:
@@ -111,7 +111,9 @@ class TableManager:
         print("\n"+action)
         if data:
             if action == "hello":
-                msg = {"action": "login", "msg": "Welcome to the server, what will be your name?"}
+                #---------------------altered---------------------------
+                msg = {"action": "login", "msg": "Welcome to the server, what will be your name?", "max_pieces": self.game.deck.pieces_per_player}
+                #-------------------------------------------------------
                 return pickle.dumps(msg)
             # TODO login mechanic is flawed, only nickname
             if action == "req_login":
@@ -159,17 +161,35 @@ class TableManager:
             #------------------------added-------------------------------
             if action == "scrumbled":
                 if self.game.player_index == self.game.max_players-1:
-                    self.game.scrumbled = 1
+                    self.game.s_deck = data["deck"]
                     player = self.game.nextPlayer()
-                    msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
-                    self.send_all(msg,sock)
-                    return pickle.dumps(msg)
+                    msg = {"action": "select", "deck":self.game.s_deck}
+                    self.send_to(msg, player)
+                    return
                 else:
                     player = self.game.nextPlayer()
                     msg = {"action": "scrumble", "deck": data["deck"]}
                     self.send_to(msg, player)
                     return
             if action == "selected":
+                if len(self.game.s_deck) != len(data["deck"]):
+                    self.game.players[self.game.player_index].n_pieces += 1
+                    print(self.game.players[self.game.player_index].num_pieces)
+                self.game.s_deck = data["deck"]
+                hands_full = True
+                for p in self.game.players:
+                    print("player: {} hand pieces: {}".format(p.name, p.n_pieces))
+                    if p.n_pieces < p.pieces_per_player:
+                        hands_full = False
+                if hands_full:
+                    msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
+                    input("wait")
+                    self.send_all(msg,sock)
+                    return pickle.dumps(msg)
+                else:
+                    player = self.game.nextPlayer()
+                    msg = {"action": "select", "deck":self.game.s_deck}
+                    self.send_to(msg, player)
                 return
             if action == "deciphered":
                 if self.decipher_player_list == []:

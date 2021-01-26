@@ -17,6 +17,7 @@ class Player:
         self.socket = socket
         self.hand = []
         self.num_pieces = 0
+        self.n_pieces = 0 #added
         self.score = 0
         self.host=False
         self.pieces_per_player=pieces_per_player
@@ -24,6 +25,7 @@ class Player:
         self.in_table = []
         self.nopiece = False
         #-------added-------------
+        self.hand2 = []
         self.deck = []
         self.ciphered_deck = []
         self.deciphered_deck = []
@@ -170,13 +172,14 @@ class Player:
             plaintext = unpadder.update(decryptor.update(c_text)) + unpadder.finalize()
             self.deciphered_deck.append(base64.b64encode(plaintext))
 
-    def pick_tile(self):
-        if random.choice([i for i in range(100)]) > 5:
-            return
-        ids = [id for id in range(len(self.deciphered_deck))]
-        choice = random.choice(ids)
-        self.deciphered_deck.pop(self.deciphered_deck[choice])
-        hand.append(self.deciphered_deck[choice])
+    def pick_tile(self, tiles):
+        if len(self.hand2) < self.pieces_per_player:
+            if random.choice([i for i in range(100)]) > 99:
+                return tiles
+            ids = [id for id in range(len(tiles))]
+            choice = tiles.pop(random.choice(ids))
+            self.hand2.append(choice)
+        return tiles
 
 class Piece:
     values = []
@@ -215,8 +218,6 @@ class Deck:
             self.deck.append(p) #altered
 
         self.pseudo_deck() #added
-        print("tiles: " + str(self.deck2))
-        print("pseudonyms: " + str(self.ps_deck))
         self.npieces = len(self.deck)
         self.pieces_per_player = pieces_per_player
         self.in_table = []
