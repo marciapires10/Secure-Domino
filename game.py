@@ -14,6 +14,7 @@ class Game:
         self.all_ready_to_play = False
         #----------added-------------
         self.s_deck = []
+        self.deck_len = len(self.deck.deck)
 
     def checkDeadLock(self):
         return all([ player.nopiece for player in self.players ])

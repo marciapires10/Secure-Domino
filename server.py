@@ -140,8 +140,11 @@ class TableManager:
 
                             #check if table is full
                             if self.game.isFull():
+                                #---------------altered--------------------
+                                players_name = [p.name for p in self.game.players]
                                 print(Colors.BIPurple+"The game is Full"+Colors.Color_Off)
-                                msg = {"action": "waiting_for_host", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off}
+                                msg = {"action": "waiting_for_host", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off, "players": players_name}
+                                #------------------------------------------
                                 self.send_all(msg,sock)
                             return pickle.dumps(msg)
                     else:
@@ -174,20 +177,24 @@ class TableManager:
             if action == "selected":
                 if len(self.game.s_deck) != len(data["deck"]):
                     self.game.players[self.game.player_index].n_pieces += 1
-                    print(self.game.players[self.game.player_index].num_pieces)
                 self.game.s_deck = data["deck"]
-                hands_full = True
-                for p in self.game.players:
-                    print("player: {} hand pieces: {}".format(p.name, p.n_pieces))
-                    if p.n_pieces < p.pieces_per_player:
-                        hands_full = False
-                if hands_full:
+                # hands_full = True
+                # for p in self.game.players:
+                #     print("player: {} hand pieces: {}".format(p.name, p.n_pieces))
+                #     if p.n_pieces < p.pieces_per_player:
+                #         hands_full = False
+                # if hands_full:
+                #     print("stock: "+str(len(self.game.deck.deck)-(self.game.deck.pieces_per_player*self.game.nplayers)))
+                #     print("r stock: "+str(len(self.game.s_deck)))
+                if len(self.game.s_deck) == self.game.deck_len-(self.game.deck.pieces_per_player*self.game.nplayers):
                     msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                     input("wait")
                     self.send_all(msg,sock)
                     return pickle.dumps(msg)
                 else:
-                    player = self.game.nextPlayer()
+                    for pl in self.game.players:
+                        if pl.name == data["next_player"]:
+                            player = pl
                     msg = {"action": "select", "deck":self.game.s_deck}
                     self.send_to(msg, player)
                 return

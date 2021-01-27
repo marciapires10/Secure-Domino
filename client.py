@@ -57,6 +57,10 @@ class client():
             print("There are "+str(data["nplayers"])+"\\"+str(data["game_players"]))
 
         elif action == "waiting_for_host":
+            #--------------------added--------------------------
+            self.players = [p for p in data["players"] if p != self.player.name]
+            print(self.players)
+            #---------------------------------------------------
             if self.player.host:
                 input(Colors.BGreen+"PRESS ENTER TO START THE GAME"+Colors.Color_Off)
                 msg = {"action": "start_game"}
@@ -77,7 +81,8 @@ class client():
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "select":
             tiles = self.player.pick_tile(data["deck"])
-            msg = {"action": "selected", "deck": tiles}
+            next_player = random.choice(self.players)
+            msg = {"action": "selected", "deck": tiles, "next_player": next_player}
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------
         elif action == "host_start_game":

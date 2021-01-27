@@ -30,8 +30,6 @@ class Player:
         self.ciphered_deck = []
         self.deciphered_deck = []
         self.key_map = dict()
-        self.first = 0
-        self.last = 0
 
 
     def __str__(self):
@@ -175,6 +173,12 @@ class Player:
     def pick_tile(self, tiles):
         if len(self.hand2) < self.pieces_per_player:
             if random.choice([i for i in range(100)]) > 99:
+                if random.choice([i for i in range(100)]) >= 50:
+                    ids = [id for id in range(len(tiles))]
+                    choice = tiles.pop(random.choice(ids))
+                    ids = [id for id in range(len(self.hand2))]
+                    tiles.append(self.hand2.pop(random.choice(ids)))
+                    self.hand2.append(choice)
                 return tiles
             ids = [id for id in range(len(tiles))]
             choice = tiles.pop(random.choice(ids))
