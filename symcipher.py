@@ -4,44 +4,62 @@ from cryptography.hazmat.primitives import hashes, padding
 from cryptography.hazmat.backends import default_backend
 import base64
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import random
+
+### First we generate a shared secret using DH, after that we apply KDF that will result in a shared key.
+### Then we use that shared key in AES.
 
 
 ####### Diffie Hellman Key Exchange Algorithm #######
 
-# class DiffieHellman:
-    
-#     def __init__(self, pk1, pk2, private_key):
-#         self.pk1 = pk1
-#         self.pk2 = pk2
-#         self.private_key = private_key
-#         self.full_key = None
+class DiffieHellman:
+    prime = 103079
+    generator = 7
 
-#     def generate_partial_key(self):
-#         partial_key = self.pk1**self.pk2
-#         partial_key = partial_key%self.pk2
-#         return partial_key
+    def __init__(self):
+        self.secret_value = random.randint(1,100)
+        self.public_value = self.generate_pk()
 
-#     def generate_full_key(self, partial_key_r):
-#         full_key = partial_key_r**self.private_key
-#         full_key = full_key%self.pk2
-#         self.full_key = full_key
-#         return full_key
+    def generate_pk(self):
+        public_value = (self.generator ** self.secret_value) % self.prime
+        return public_value
+
+    def generate_ss(self, secret_value, other_key):
+        shared_secret = (other_key ** self.secret_value) % self.prime
+        return shared_secret
+
+### test ###
+alice = DiffieHellman()
+bob = DiffieHellman()
+
+alice_ss = alice.generate_ss(alice.secret_value, bob.public_value)
+print(alice_ss)
+bob_ss = bob.generate_ss(bob.secret_value, alice.public_value)
+print(bob_ss)
 
 
 ########### Key Derivation (KDF) ############
 
-def keyDerivation():
+def keyDerivation(key):
 
     salt = os.urandom(16)
 
     kdf = PBKDF2HMAC(
         hashes.SHA512(), 32, salt, 10000, default_backend()
     )
-    key = kdf.derive(os.urandom(16))
+    key = kdf.derive(bytes(key))
 
     return key
 
+
+### test ###
+
+key_derivation = keyDerivation(alice_ss)
+print(key_derivation)
+
 ########### Cifra simétrica ############
+### Note to self: this class needs to be fixed
+
 
 class SymmetricCipher:
 
@@ -78,7 +96,7 @@ class SymmetricCipher:
         return plaintext
 
     ### test ###
-    key = keyDerivation()
+    key = keyDerivation(alice_ss)
     original_msg = b'2]f\xb9a\xdf\x99\xc8\xd4'
     print("Mensagem original:", original_msg)
     ciphertext = encrypt_message(original_msg, key)
