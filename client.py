@@ -9,11 +9,6 @@ import Colors
 import string
 from deck_utils import Player
 import random
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding, hashes
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 class client():
@@ -26,7 +21,6 @@ class client():
         self.player = None
         #-------added-------------
         self.p_deck = []
-        self.block_size_cbc = algorithms.AES.block_size // 8
         self.key_map = dict()
         self.p_hand = []
         self.receiveData()
