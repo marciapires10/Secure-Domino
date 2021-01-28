@@ -69,12 +69,12 @@ class client():
             else:
                 print(data["msg"])
         #---------------added----------------------------
-        elif data["action"]=="scrumble":
+        elif data["action"] == "scrumble":
             scrumble_deck = data["deck"]
             self.player.cipher_tiles(scrumble_deck)
             msg = {"action": "scrumbled", "deck": self.player.ciphered_deck}
             self.sock.send(pickle.dumps(msg))
-        elif data["action"]=="decipher":
+        elif data["action"] == "decipher":
             decipher_deck = data["deck"] 
             self.player.decipher_tiles(decipher_deck)
             msg = {"action": "deciphered", "deck": self.player.deciphered_deck}
@@ -83,6 +83,10 @@ class client():
             tiles = self.player.pick_tile(data["deck"])
             next_player = random.choice(self.players)
             msg = {"action": "selected", "deck": tiles, "next_player": next_player}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "commitment":
+            self.player.bitcommitment()
+            msg = {"action": "bitcommitment", "bitcommit": self.player.bitcommit, "r1": self.player.r1}
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------
         elif action == "host_start_game":

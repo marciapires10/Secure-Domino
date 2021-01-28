@@ -30,7 +30,9 @@ class Player:
         self.ciphered_deck = []
         self.deciphered_deck = []
         self.key_map = dict()
-
+        self.bitcommit = None
+        self.r1 = None
+        self.r2 = None
 
     def __str__(self):
         return str(self.toJson())
@@ -184,6 +186,15 @@ class Player:
             choice = tiles.pop(random.choice(ids))
             self.hand2.append(choice)
         return tiles
+
+    def bitcommitment(self):
+        self.r1 = os.urandom(128)
+        self.r2 = os.urandom(128)
+        digest = hashes.Hash(hashes.SHA256(), default_backend())
+        digest.update(str(self.hand2).encode('utf-8'))
+        digest.update(self.r1)
+        digest.update(self.r2)
+        self.bitcommit = digest.finalize()
 
 class Piece:
     values = []

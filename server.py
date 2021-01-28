@@ -187,7 +187,7 @@ class TableManager:
                 #     print("stock: "+str(len(self.game.deck.deck)-(self.game.deck.pieces_per_player*self.game.nplayers)))
                 #     print("r stock: "+str(len(self.game.s_deck)))
                 if len(self.game.s_deck) == self.game.deck_len-(self.game.deck.pieces_per_player*self.game.nplayers):
-                    msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
+                    msg = {"action": "commitment", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                     input("wait")
                     self.send_all(msg,sock)
                     return pickle.dumps(msg)
@@ -198,6 +198,13 @@ class TableManager:
                     msg = {"action": "select", "deck":self.game.s_deck}
                     self.send_to(msg, player)
                 return
+            if action == "bitcommitment":
+                for player in self.game.players:
+                    if sock == player.socket:
+                        player.bitcommit, player.r1 = data["bitcommit"], data["r1"]
+                        msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
+                        self.send_to(msg, player)
+                        return
             if action == "deciphered":
                 if self.decipher_player_list == []:
                     msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
@@ -217,6 +224,10 @@ class TableManager:
                 return pickle.dumps(msg)
 
             if action == "get_game_propreties":
+                #---------------test------------------------
+                # for player in self.game.players:
+                #     print("player: "+str(player.name)+" bitcommit: "+str(player.bitcommit)+" r1: "+str(player.r1))
+                #-------------------------------------------
                 msg = {"action": "rcv_game_propreties"}
                 msg.update(self.game.toJson())
                 return pickle.dumps(msg)
