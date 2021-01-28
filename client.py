@@ -1,4 +1,4 @@
-from authentication import savePubKey, writeCSV
+from authentication import saveScore
 import socket
 import os
 import sys
@@ -151,6 +151,6 @@ class client():
         elif action == "agreement_result":
             print("Result:" + str(data["agreement_result"]))
             if str(data["agreement_result"]) == "Aproved":
-                savePubKey(self.player.name, self.player.score)
+                saveScore(self.player.score)
 
 a = client('localhost', 50000)

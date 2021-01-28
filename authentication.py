@@ -1,23 +1,17 @@
 import pandas
-
-from os import write
+from Crypto.Cipher import DES3, AES
 from PyKCS11 import *
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import load_der_public_key, load_pem_public_key
-from cryptography.hazmat.primitives.asymmetric import (padding ,rsa ,utils)
 
 lib = '/usr/local/lib/libpteidpkcs11.so'
 
 
-def writeCSV(winner, pem, score):
+def writeCSV(msg, score):
     olderMember = False
-    text = input("Your Name:")
+    #text = input("Your Name:")
     df = pandas.read_csv('data.csv')
     count = 0
     for r in df.values:
-        if r[2] == pem.decode("utf-8"):  #if the person already exist in our DB
+        if r[1] == str(msg):  #if the person already exist in our DB
             olderMember = True
             df.loc[count,'POINTS'] = df.loc[count,'POINTS']+score
             print("DF: " + str(df))
@@ -25,55 +19,62 @@ def writeCSV(winner, pem, score):
         count+=1
     print()
     if olderMember==False:
-        df = df.append({'NAME': text, 'POINTS': str(score), 'PUBLIC_KEY': pem.decode("utf-8")}, ignore_index=True)
+        df = df.append({'POINTS': str(score), 'SERIAL_NUMBER': str(msg)}, ignore_index=True)
         print("DF: " + str(df))
         df.to_csv('data.csv', index = None, header=True)
 
-    print(df)
 
-
-def savePubKey(name, score):                                                                                                                                     
+def saveScore(score):                                                                                                                                     
     try :
-        
+
         pkcs11 = PyKCS11.PyKCS11Lib()
         pkcs11.load(lib)
         slots = pkcs11.getSlotList()
 
         for slot in slots :
             if 'CARTAO DE CIDADAO' in pkcs11.getTokenInfo(slot).label:
-            
+                
                 session = pkcs11.openSession(slot)
-                pubKeyHandle = session.findObjects ([(CKA_CLASS, CKO_PUBLIC_KEY) ,(CKA_LABEL , 'CITIZEN AUTHENTICATION KEY')])[0]
-                pubKeyDer = session.getAttributeValue (pubKeyHandle, [CKA_VALUE], True )[0]
-                session.closeSession
+                objects = session.findObjects()
+                serialNumber = ""
 
-                pubKey = load_der_public_key(bytes(pubKeyDer), default_backend())
-                pem = pubKey.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
-        
-                #pubKey.verify( signature , data ,padding.PKCS1v15() , hashes.SHA1())
+                for obj in objects:
+                    l = session.getAttributeValue(obj, [CKA_LABEL])[0]
+                    if l == 'CITIZEN SIGNATURE CERTIFICATE':
+                        serialNumber=session.getAttributeValue(obj, [CKA_SERIAL_NUMBER], True)[0]
+
+                session.closeSession
                 print ('Load Pub Key succeeded')
-                writeCSV(name, pem, score)
-                #saveLogins(name, pem)
+                encryptDES(serialNumber, score)
         return True
     except :
-        print ('Insira o cartao')
+        print ('Insira o cartao antes de o jogo terminal')
         return False
 
-# def read_from_file():
-#     f = open("login.txt", "r")
-#     # print(f.read())
-#     return f.read()
 
-# def saveLogins(name, pem):
-#     key = read_from_file()
-#     with open('login.txt', 'w') as f:
-#         f.write(key)
-#         f.write('\n')
-#         f.write(name)
-#         f.write("!!")
-#         f.write(pem.decode("utf-8"))
-        
-#         f.close()
+def encryptDES(serialNumber, score):
+    ## Encrypt with DES
+    key = b'Sixteen byte key'
+    iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
+    #iv = os.urandom(DES3.block_size)
 
-#writeCSV("OLE2")
-#savePubKey("r2")
+    cipher = DES3.new(key, DES3.MODE_OFB, iv)
+    plaintext = str(serialNumber)
+    msg = cipher.encrypt(plaintext)
+    # print(plaintext)
+    # print(msg)
+    writeCSV(msg, score)
+
+
+def dencryptDES(msg):
+    ## Decrypt with DES
+    key = b'Sixteen byte key'
+    iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
+
+    cipher = DES3.new(key, DES3.MODE_OFB, iv)
+    #print(cipher.decrypt(msg).decode())
+    return cipher.decrypt(msg).decode()
+
+
+# rr = saveScore(5)
+# print(rr)
