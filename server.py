@@ -249,7 +249,10 @@ class TableManager:
                 self.deciphered += 1
                 if self.deciphered == self.game.max_players:
                     print("ok")
-                    input()
+                    input("wait")
+                    msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
+                    self.send_all(msg,sock)
+                    return pickle.dumps(msg)
                 return
             #-------------------------------------------------------------
 
@@ -280,10 +283,14 @@ class TableManager:
                         print("Result Aproved")
                         msg = {"action": "agreement_result", "agreement_result": "Aproved"} 
                         self.send_all(msg,sock)
-                        #print(dicSerialNumber)
-                        serialNumber = dicSerialNumber[dicSerialNumber["win"]]
-                        points = dicSerialNumber["points"]
-                        writeCSV(serialNumber,int(points[dicSerialNumber["win"]]))
+                        try:
+                            print(dicSerialNumber)
+                            serialNumber = dicSerialNumber[dicSerialNumber["win"]]
+                            points = dicSerialNumber["points"]
+                            writeCSV(serialNumber,int(points[dicSerialNumber["win"]]))
+                        except:
+                            print("Nobody win points because it's a draw")
+                        
                     else:
                         print("Aproving")
                         msg = {"action": "agreement_result", "agreement_result": "Waiting for Response."}
