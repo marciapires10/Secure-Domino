@@ -64,7 +64,6 @@ class TableManager:
 
                 else:  # We are receiving data from a client socket
                     data = sock.recv(524288)
-                    time.sleep(0.1)
                     if data:
                         to_send = self.handle_action(data, sock)
                         if to_send != None:
@@ -299,13 +298,12 @@ class TableManager:
                 piece = self.game.deck.deck2[int(data["idx"])]
                 msg = {"action": "de-anonymized", "piece": piece}
                 player = self.game.currentPlayer()
-                player.updatePieces(1)
+                player.n_pieces += 1
                 self.send_to(msg, player)
                 return
             #-------------------------------------------------------------
 
             if action == "ready_to_play":
-                input("wait")
                 msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                 self.send_all(msg,sock)
                 return pickle.dumps(msg)

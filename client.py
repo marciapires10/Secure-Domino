@@ -30,7 +30,6 @@ class client():
     def receiveData(self):
         while True:
             data = self.sock.recv(524288)
-            time.sleep(0.2)
             if data:
                 self.handle_data(data)
 
