@@ -26,6 +26,7 @@ class Player:
         self.nopiece = False
         #-------added-------------
         self.hand2 = []
+        self.d_hand = []
         self.deck = []
         self.ciphered_deck = []
         self.deciphered_deck = []
@@ -159,18 +160,69 @@ class Player:
             self.ciphered_deck.append(ciphertext)
         random.shuffle(self.ciphered_deck)
 
-    def decipher_tiles(self, tiles):
-        for ciphertext in tiles:
-            c = base64.b64decode(ciphertext)
-            key = self.key_map[ciphertext]
-            IV, c_text = c[:16], c[16:]
-            cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
-            unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
-            decryptor = cipher.decryptor()
-            plaintext = b''
-            i = 16
-            plaintext = unpadder.update(decryptor.update(c_text)) + unpadder.finalize()
-            self.deciphered_deck.append(base64.b64encode(plaintext))
+    # def decipher_tiles_first(self, tiles):
+    #     k_map = dict()
+    #     for ciphertext in tiles:
+    #         c = base64.b64decode(ciphertext)
+    #         key = self.key_map[ciphertext]
+    #         IV, c_text = c[:16], c[16:]
+    #         cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
+    #         unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+    #         decryptor = cipher.decryptor()
+    #         plaintext = b''
+    #         plaintext = unpadder.update(decryptor.update(c_text)) + unpadder.finalize()
+    #         k_map[ciphertext] = key
+    #     return k_map
+
+    def decipher_tiles(self, tiles, k_map_arr):
+        t = tiles
+        aux = []
+        for k_map in k_map_arr:
+            for ciphertext in t:
+                if ciphertext in k_map:
+                    plaintext = self.decipher(ciphertext, k_map)
+                    aux.append(base64.b64encode(plaintext))
+            t = aux
+            aux = []
+        k_map = dict()
+        for ciphertext in t:
+            if ciphertext in self.key_map:
+                plaintext = self.decipher(ciphertext, self.key_map)
+                k_map[ciphertext] = self.key_map[ciphertext]
+        print(len(k_map.keys()))
+        return k_map
+
+    def decipher_all(self, k_map_arr):
+        t = self.hand2
+        aux = []
+        last = len(k_map_arr)
+        count = 0
+        for k_map in k_map_arr:
+            count += 1
+            for ciphertext in t:
+                if ciphertext in k_map:
+                    plaintext = self.decipher(ciphertext, k_map)
+                    if count == last:
+                        aux.append(plaintext)
+                    else:
+                        aux.append(base64.b64encode(plaintext))
+            if aux != []:
+                t = aux
+                aux = []
+        for i in t:
+            x = tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))
+            print(x[1])
+
+    def decipher(self, ciphertext, k_map):
+        c = base64.b64decode(ciphertext)
+        key = k_map[ciphertext]
+        IV, c_text = c[:16], c[16:]
+        cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        decryptor = cipher.decryptor()
+        plaintext = b''
+        plaintext = unpadder.update(decryptor.update(c_text)) + unpadder.finalize()
+        return plaintext
 
     def pick_tile(self, tiles):
         if len(self.hand2) < self.pieces_per_player:
@@ -249,20 +301,45 @@ class Deck:
             self.ps_deck.append((res, i))
 
     def check(self, msg):
-        c_deck = pickle.loads(msg)['msg']
-        r_deck = []
-        for i in c_deck:
-            r_deck.append(base64.b64decode(i).decode('utf-8'))
-        tmp = []
-        for i in self.ps_deck:
-            tmp.append(str(i))
-        c_deck = r_deck
-        for i in tmp:
-            if i in r_deck:
-                r_deck.remove(i)
+        r_deck = [i.decode('utf-8') for i in msg]
+        tmp2 = r_deck
+        tmp = [str(i) for i in self.ps_deck]
+        for i in r_deck:
+            if i in tmp:
+                tmp.remove(i)
             else:
                 return False
-        return r_deck == []
+        return True
+
+    def decipher_all(self, p_tiles, k_map_arr):
+        t = p_tiles
+        aux = []
+        last = len(k_map_arr)
+        count = 0
+        for k_map in k_map_arr:
+            count += 1
+            for ciphertext in t:
+                if ciphertext in k_map:
+                    plaintext = self.decipher(ciphertext, k_map)
+                    if count == last:
+                        aux.append(plaintext)
+                    else:
+                        aux.append(base64.b64encode(plaintext))
+            if aux != []:
+                t = aux
+                aux = []
+        print(self.check(t))
+        
+    def decipher(self, ciphertext, k_map):
+        c = base64.b64decode(ciphertext)
+        key = k_map[ciphertext]
+        IV, c_text = c[:16], c[16:]
+        cipher = Cipher(algorithms.AES(key), modes.CBC(IV), default_backend())
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        decryptor = cipher.decryptor()
+        plaintext = b''
+        plaintext = unpadder.update(decryptor.update(c_text)) + unpadder.finalize()
+        return plaintext
     #--------------------------------------------------------------------
 
     def __str__(self):

@@ -38,6 +38,12 @@ class TableManager:
         self.inputs = [self.server]  # sockets where we read
         self.outputs = []  # sockets where we write
         self.message_queue = {}  # queue of messages
+        #--------------added--------------
+        self.d_players = []
+        self.p_key_map = []
+        self.p_tiles = []
+        self.deciphered = 0
+        #---------------------------------
 
 
         while self.inputs:
@@ -51,7 +57,7 @@ class TableManager:
                     self.message_queue[connection] = queue.Queue()
 
                 else:  # We are receiving data from a client socket
-                    data = sock.recv(32768)
+                    data = sock.recv(524288)
                     if data:
                         to_send = self.handle_action(data, sock)
                         if to_send != None:
@@ -157,6 +163,7 @@ class TableManager:
                 # msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                 # self.send_all(msg,sock)
                 player = self.game.currentPlayer()
+                self.d_players.append(player)
                 msg = {"action": "scrumble", "deck": self.game.deck.ps_deck}
                 self.send_to(msg, player)
                 return
@@ -164,6 +171,7 @@ class TableManager:
             #------------------------added-------------------------------
             if action == "scrumbled":
                 if self.game.player_index == self.game.max_players-1:
+                    self.game.tiles = data["deck"]
                     self.game.s_deck = data["deck"]
                     player = self.game.nextPlayer()
                     msg = {"action": "select", "deck":self.game.s_deck}
@@ -171,6 +179,7 @@ class TableManager:
                     return
                 else:
                     player = self.game.nextPlayer()
+                    self.d_players.append(player)
                     msg = {"action": "scrumble", "deck": data["deck"]}
                     self.send_to(msg, player)
                     return
@@ -187,10 +196,10 @@ class TableManager:
                 #     print("stock: "+str(len(self.game.deck.deck)-(self.game.deck.pieces_per_player*self.game.nplayers)))
                 #     print("r stock: "+str(len(self.game.s_deck)))
                 if len(self.game.s_deck) == self.game.deck_len-(self.game.deck.pieces_per_player*self.game.nplayers):
-                    msg = {"action": "commitment", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
-                    input("wait")
-                    self.send_all(msg,sock)
-                    return pickle.dumps(msg)
+                    msg = {"action": "commitment"}
+                    player = self.game.currentPlayer()
+                    self.send_to(msg, player)
+                    return
                 else:
                     for pl in self.game.players:
                         if pl.name == data["next_player"]:
@@ -198,23 +207,41 @@ class TableManager:
                     msg = {"action": "select", "deck":self.game.s_deck}
                     self.send_to(msg, player)
                 return
-            if action == "bitcommitment":
-                for player in self.game.players:
-                    if sock == player.socket:
-                        player.bitcommit, player.r1 = data["bitcommit"], data["r1"]
-                        msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
-                        self.send_to(msg, player)
-                        return
-            if action == "deciphered":
-                if self.decipher_player_list == []:
-                    msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
+            if action == "commited":
+                player = self.game.currentPlayer()
+                player.bitcommit, player.r1 = data["bitcommit"], data["r1"]
+                if self.game.player_index == self.game.nplayers-1:
+                    print([p.bitcommit for p in self.game.players])
+                    self.p_tiles = [d for d in self.game.s_deck + self.game.tiles if d in self.game.tiles and d not in self.game.s_deck]
+                    player = self.d_players.pop(-1)
+                    msg = {"action": "key_map", "key_map": self.p_key_map, "tiles": self.p_tiles}
+                    self.send_to(msg, player)
+                else:
+                    player = self.game.nextPlayer()
+                    msg = {"action": "commitment"}
+                    self.send_to(msg, player)
+                return
+            if action == "key_map":
+                self.p_key_map.append(data["key_map"])
+                for c in self.p_key_map:
+                    print(len(c))
+                input()
+                if self.d_players == []:
+                    self.game.deck.decipher_all(self.p_tiles, self.p_key_map)
+                    msg = {"action": "decipher", "key_map": self.p_key_map}
                     self.send_all(msg,sock)
                     return pickle.dumps(msg)
                 else:
-                    player = self.self.game.nextPlayer()
-                    msg = {"action": "decipher", "deck": data["deck"]}
+                    player = self.d_players.pop(-1)
+                    msg = {"action": "key_map", "key_map": self.p_key_map, "tiles": self.p_tiles}
                     self.send_to(msg, player)
                     return
+            if action == "deciphered":
+                self.deciphered += 1
+                if self.deciphered == self.game.max_players:
+                    print("ok")
+                    input()
+                return
             #-------------------------------------------------------------
 
             if action == "ready_to_play":

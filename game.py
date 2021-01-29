@@ -14,6 +14,7 @@ class Game:
         self.all_ready_to_play = False
         #----------added-------------
         self.s_deck = []
+        self.tiles = []
         self.deck_len = len(self.deck.deck)
 
     def checkDeadLock(self):
@@ -48,7 +49,7 @@ class Game:
         return False
 
     def isFull(self):
-        return self.nplayers == self.max_players
+        return self.nplayers == self.max_players    
 
     def toJson(self):
         msg = {"next_player":self.players[self.player_index].name ,"nplayers":self.nplayers

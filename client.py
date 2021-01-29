@@ -28,7 +28,7 @@ class client():
 
     def receiveData(self):
         while True:
-            data = self.sock.recv(32768)
+            data = self.sock.recv(524288)
             if data:
                 self.handle_data(data)
 
@@ -68,11 +68,6 @@ class client():
             self.player.cipher_tiles(scrumble_deck)
             msg = {"action": "scrumbled", "deck": self.player.ciphered_deck}
             self.sock.send(pickle.dumps(msg))
-        elif data["action"] == "decipher":
-            decipher_deck = data["deck"] 
-            self.player.decipher_tiles(decipher_deck)
-            msg = {"action": "deciphered", "deck": self.player.deciphered_deck}
-            self.sock.send(pickle.dumps(msg))
         elif data["action"] == "select":
             tiles = self.player.pick_tile(data["deck"])
             next_player = random.choice(self.players)
@@ -80,7 +75,15 @@ class client():
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "commitment":
             self.player.bitcommitment()
-            msg = {"action": "bitcommitment", "bitcommit": self.player.bitcommit, "r1": self.player.r1}
+            msg = {"action": "commited", "bitcommit": self.player.bitcommit, "r1": self.player.r1}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "key_map":
+            k_map = self.player.decipher_tiles(data["tiles"], data["key_map"])
+            msg = {"action": "key_map", "key_map": k_map}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "decipher":
+            self.player.decipher_all(data["key_map"])
+            msg = {"action": "deciphered"}
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------
         elif action == "host_start_game":
