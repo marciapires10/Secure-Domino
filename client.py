@@ -153,7 +153,7 @@ class client():
 
         elif action == "agreement_result":
             print("Result:" + str(data["agreement_result"]))
-            if str(data["agreement_result"]) == "Aproved":
-                saveScore(self.player.score)
+            # if str(data["agreement_result"]) == "Aproved":
+            #     saveScore(self.player.score)
 
 a = client('localhost', 50000)

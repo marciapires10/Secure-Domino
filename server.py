@@ -1,4 +1,5 @@
 from deck_utils import *
+from authentication import authSerialNumber, writeCSV
 import socket
 import select
 import sys
@@ -16,6 +17,8 @@ import time
 
 # Main socket code from https://docs.python.org/3/howto/sockets.html
 # Select with sockets from https://steelkiwi.com/blog/working-tcp-sockets/
+
+dicSerialNumber = {}
 
 class TableManager:
 
@@ -125,6 +128,9 @@ class TableManager:
             if action == "req_login":
                 print("User {} requests login, with nickname {}".format(sock.getpeername(), data["msg"]))
                 if not self.game.hasHost():  # There is no game for this tabla manager
+                    serialNumber = authSerialNumber()  #authentication initial
+                    dicSerialNumber[data["msg"]] = serialNumber
+
                     self.game.addPlayer(data["msg"],sock,self.game.deck.pieces_per_player) # Adding host
                     msg = {"action": "you_host", "msg": Colors.BRed+"You are the host of the game"+Colors.Color_Off}
                     print("User "+Colors.BBlue+"{}".format(data["msg"])+Colors.Color_Off+" has created a game, he is the first to join")
@@ -136,11 +142,14 @@ class TableManager:
                             print("User {} tried to join a full game".format(data["msg"]))
                             return pickle.dumps(msg)
                         else:
+                            serialNumber = authSerialNumber()  #authentication initial
+                            dicSerialNumber[data["msg"]] = serialNumber
+
                             self.game.addPlayer(data["msg"], sock,self.game.deck.pieces_per_player)  # Adding player
                             msg = {"action": "new_player", "msg": "New Player "+Colors.BGreen+data["msg"]+Colors.Color_Off+" registered in game",
                                    "nplayers": self.game.nplayers, "game_players": self.game.max_players}
                             print("User "+Colors.BBlue+"{}".format(data["msg"])+Colors.Color_Off+" joined the game")
-
+                            
                             #send info to all players
                             self.send_all(msg)
 
@@ -271,6 +280,10 @@ class TableManager:
                         print("Result Aproved")
                         msg = {"action": "agreement_result", "agreement_result": "Aproved"} 
                         self.send_all(msg,sock)
+                        #print(dicSerialNumber)
+                        serialNumber = dicSerialNumber[dicSerialNumber["win"]]
+                        points = dicSerialNumber["points"]
+                        writeCSV(serialNumber,int(points[dicSerialNumber["win"]]))
                     else:
                         print("Aproving")
                         msg = {"action": "agreement_result", "agreement_result": "Waiting for Response."}
@@ -328,7 +341,8 @@ class TableManager:
                             for p in self.game.players:
                                 players_score[p.name] = p.score
                             msg = {"action": "end_game","winner":player.name, "players": players_score}
-
+                            dicSerialNumber["win"] = player.name
+                            dicSerialNumber["points"] = players_score
                     else:
                         msg = {"action": "rcv_game_propreties"}
                     msg.update(self.game.toJson())

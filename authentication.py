@@ -76,5 +76,55 @@ def dencryptDES(msg):
     return cipher.decrypt(msg).decode()
 
 
+def authSerialNumber():
+    serialNumber = ""
+    try :
+
+        pkcs11 = PyKCS11.PyKCS11Lib()
+        pkcs11.load(lib)
+        slots = pkcs11.getSlotList()
+
+        for slot in slots :
+            if 'CARTAO DE CIDADAO' in pkcs11.getTokenInfo(slot).label:
+                
+                session = pkcs11.openSession(slot)
+                objects = session.findObjects()
+
+                for obj in objects:
+                    l = session.getAttributeValue(obj, [CKA_LABEL])[0]
+                    if l == 'CITIZEN SIGNATURE CERTIFICATE':
+                        serialNumber=session.getAttributeValue(obj, [CKA_SERIAL_NUMBER], True)[0]
+
+                session.closeSession
+        print ('Authentication succeeded')
+        SN = encryptSerialNumber(serialNumber)
+        return SN
+    except :
+        print ('Insira o cartao antes de o jogo terminal')
+        return serialNumber
+
+
+def encryptSerialNumber(serialNumber):
+    ## Encrypt with DES
+    key = b'Sixteen byte key'
+    iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
+    #iv = os.urandom(DES3.block_size)
+
+    cipher = DES3.new(key, DES3.MODE_OFB, iv)
+    plaintext = str(serialNumber)
+    msg = cipher.encrypt(plaintext)
+    # print(plaintext)
+    # print(msg)
+    return msg
+
+def dencryptSerialNumber(msg):
+    ## Decrypt with DES
+    key = b'Sixteen byte key'
+    iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
+
+    cipher = DES3.new(key, DES3.MODE_OFB, iv)
+    #print(cipher.decrypt(msg).decode())
+    return cipher.decrypt(msg).decode()
+    
 # rr = saveScore(5)
 # print(rr)
