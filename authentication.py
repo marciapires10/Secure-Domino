@@ -82,12 +82,13 @@ def encryptSerialNumber(serialNumber):
     iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
     #iv = os.urandom(DES3.block_size)
     print("ola")
-    cipher = DES3.new(key, DES3.MODE_OFB, iv)
     plaintext = str(serialNumber)
-    print(plaintext)
+    
+    cipher = DES3.new(key, DES3.MODE_OFB, iv)
+    pad_len = 8 - len(plaintext) % 8 # length of padding
+    padding = chr(pad_len) * pad_len # PKCS5 padding content
+    plaintext += padding
     msg = cipher.encrypt(plaintext)
-    print("olo")
-    print(plaintext)
     print(msg)
     return msg
 
