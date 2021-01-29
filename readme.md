@@ -23,6 +23,12 @@ To start a client:
 To start the server:
 > s
 
+To get the client points:
+> points
+
+To get all clients points:
+> points
+
 To start one server and multiple clients:
 >run_all 
 

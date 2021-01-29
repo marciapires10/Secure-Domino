@@ -5,24 +5,6 @@ from PyKCS11 import *
 lib = '/usr/local/lib/libpteidpkcs11.so'
 
 
-def writeCSV(msg, score):
-    olderMember = False
-    #text = input("Your Name:")
-    df = pandas.read_csv('data.csv')
-    count = 0
-    for r in df.values:
-        if r[1] == str(msg):  #if the person already exist in our DB
-            olderMember = True
-            df.loc[count,'POINTS'] = df.loc[count,'POINTS']+score
-            print("DF: " + str(df))
-            df.to_csv('data.csv', index = None, header=True)
-        count+=1
-    print()
-    if olderMember==False:
-        df = df.append({'POINTS': str(score), 'SERIAL_NUMBER': str(msg)}, ignore_index=True)
-        print("DF: " + str(df))
-        df.to_csv('data.csv', index = None, header=True)
-
 
 def saveScore(score):                                                                                                                                     
     try :
@@ -66,16 +48,6 @@ def encryptDES(serialNumber, score):
     writeCSV(msg, score)
 
 
-def dencryptDES(msg):
-    ## Decrypt with DES
-    key = b'Sixteen byte key'
-    iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
-
-    cipher = DES3.new(key, DES3.MODE_OFB, iv)
-    #print(cipher.decrypt(msg).decode())
-    return cipher.decrypt(msg).decode()
-
-
 def authSerialNumber():
     serialNumber = ""
     try :
@@ -96,11 +68,11 @@ def authSerialNumber():
                         serialNumber=session.getAttributeValue(obj, [CKA_SERIAL_NUMBER], True)[0]
 
                 session.closeSession
-        print ('Authentication succeeded')
+        print("Authentication succeeded")
         SN = encryptSerialNumber(serialNumber)
         return SN
     except :
-        print ('Insira o cartao antes de o jogo terminal')
+        print("You didn\'t have the card inserted!")
         return serialNumber
 
 
@@ -109,13 +81,16 @@ def encryptSerialNumber(serialNumber):
     key = b'Sixteen byte key'
     iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
     #iv = os.urandom(DES3.block_size)
-
+    print("ola")
     cipher = DES3.new(key, DES3.MODE_OFB, iv)
     plaintext = str(serialNumber)
+    print(plaintext)
     msg = cipher.encrypt(plaintext)
-    # print(plaintext)
-    # print(msg)
+    print("olo")
+    print(plaintext)
+    print(msg)
     return msg
+
 
 def dencryptSerialNumber(msg):
     ## Decrypt with DES
@@ -125,6 +100,45 @@ def dencryptSerialNumber(msg):
     cipher = DES3.new(key, DES3.MODE_OFB, iv)
     #print(cipher.decrypt(msg).decode())
     return cipher.decrypt(msg).decode()
-    
+
+
+def writeCSV(msg, score):
+    olderMember = False
+    df = pandas.read_csv('data.csv')
+    count = 0
+    for r in df.values:
+        if r[1] == str(msg):  #if the person already exist in our DB
+            olderMember = True
+            df.loc[count,'POINTS'] = df.loc[count,'POINTS']+score
+            print("DF: " + str(df))
+            df.to_csv('data.csv', index = None, header=True)
+        count+=1
+    print()
+    if olderMember==False:
+        df = df.append({'POINTS': str(score), 'SERIAL_NUMBER': str(msg)}, ignore_index=True)
+        print("DF: " + str(df))
+        df.to_csv('data.csv', index = None, header=True)
+
+
+def readCSV():
+    SN = authSerialNumber()
+    df = pandas.read_csv('data.csv')
+    #print(df)
+
+    for r in df.values:
+        if str(SN) == r[1]:
+            print("\nThe cliente has: ", r[0], " points.")
+
+
+def allPoints():
+    df = pandas.read_csv('data.csv')
+    df = df.sort_values(by='POINTS', ascending=False)
+    print(df)
+
 # rr = saveScore(5)
 # print(rr)
+# readCSV()
+# print()
+# allPoints()
+#authSerialNumber()
+

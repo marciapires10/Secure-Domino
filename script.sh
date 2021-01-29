@@ -62,6 +62,14 @@ function c(){
 	python3 $project_path/client.py
 }
 
+function points(){
+  python3 -c 'from authentication import readCSV; print(readCSV())'
+}
+
+function allpoints(){
+  python3 -c 'from authentication import allPoints; print(allPoints())'
+}
+
 function show() {
   ps -fA | grep python
 }
@@ -70,6 +78,8 @@ function help(){
 	echo -e "Usage: \n"
 	echo -e "s  . . . . . . . . . . . . . . . . . . . . run only the server"
 	echo -e "c  . . . . . . . . . . . . . . . . . . . . run only the client"
+  echo -e "points . . . . . . . . . . . . . . . . . . Show client points"
+  echo -e "allpoints . . . . . . . . . . . . . . . .  Show all Clients points"
 	echo -e "show . . . . . . . . . . . . . . . . . . . Show python process"
 	echo -e "run_all -num_clients=[4] -max_clients=[4]  run one server instance and [value] clients "
 }
