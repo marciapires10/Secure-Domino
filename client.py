@@ -134,11 +134,13 @@ class client():
             
             # Check Agreement
             agreement = ""
-            while( agreement != "y" and agreement != "n"):
-                agreement_input = str(input("Do you agree with this result? (Y/n)"))
-                agreement = agreement_input.lower()
-                while(" " in agreement):
-                    agreement = agreement.replace(" ","")
+            #while( agreement != "y" and agreement != "n"):
+            agreement_input = str(input("Do you agree with this result? (Y/n)"))
+            agreement = agreement_input.lower()
+            while(" " in agreement):
+                agreement = agreement.replace(" ","")
+            if agreement != "n":
+                agreement = "y"
             msg = {"action": "agreement","player": self.player.name, "choice":agreement}
             self.sock.send(pickle.dumps(msg))
 
