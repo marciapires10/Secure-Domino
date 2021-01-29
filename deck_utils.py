@@ -3,12 +3,11 @@ import os
 import json
 import pickle
 import base64
-from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives import hashes, serialization, padding, hashes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding, hashes
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.asymmetric import rsa, padding as as_padd
 
 
 class Player:
@@ -24,16 +23,19 @@ class Player:
         self.ready_to_play = False
         self.in_table = []
         self.nopiece = False
+        self.deck = []
         #-------added-------------
         self.hand2 = []
         self.d_hand = []
-        self.deck = []
         self.ciphered_deck = []
         self.deciphered_deck = []
         self.key_map = dict()
         self.bitcommit = None
         self.r1 = None
         self.r2 = None
+        self.indexes = []
+        self.index_map = dict()
+        self.tmp_piece = None
 
     def __str__(self):
         return str(self.toJson())
@@ -47,10 +49,9 @@ class Player:
     def pickPiece(self):
         if not self.ready_to_play and self.num_pieces==self.pieces_per_player:
             self.ready_to_play = True
-        random.shuffle(self.deck)
-        piece = self.deck.pop()
-        self.insertInHand(piece)
-        return {"action": "get_piece", "deck": self.deck}
+        self.tmp_piece = self.deck.pop()
+        #self.insertInHand(piece)
+        return {"action": "get_piece", "deck": self.deck, "piece": self.tmp_piece}
 
     def updatePieces(self,i):
         self.num_pieces+=i
@@ -59,9 +60,11 @@ class Player:
         return self.num_pieces<self.pieces_per_player
 
     def insertInHand(self,piece):
+        print("picked piece: " + str(piece))
         self.num_pieces += 1
         self.hand.append(piece)
-        self.hand.sort(key=lambda p : int(p.values[0].value)+int(p.values[1].value))
+        #self.hand.sort(key=lambda p : int(p.values[0].value)+int(p.values[1].value))
+        return
 
     def checkifWin(self):
         print("Winner ",self.num_pieces == 0)
@@ -76,7 +79,8 @@ class Player:
             self.updatePieces(-1)
             res = {"action": "play_piece","piece":piece,"edge":0,"win":False, "score": self.score}
         else:
-            edges = self.in_table[0].values[0].value, self.in_table[len(self.in_table) - 1].values[1].value
+            edges = self.in_table[0].split(":")[0], self.in_table[len(self.in_table) - 1].split(":")[1]
+            #edges = self.in_table[0].values[0].value, self.in_table[len(self.in_table) - 1].values[1].value
             print(str(edges[0])+" "+str(edges[1]))
             max = 0
             index = 0
@@ -84,24 +88,24 @@ class Player:
             flip = False
             #get if possible the best piece to play and the correspondent assigned edge
             for i, piece in enumerate(self.hand):
-                aux = int(piece.values[0].value) + int(piece.values[1].value)
+                aux = int(piece.split(":")[0]) + int(piece.split(":")[1])
                 if aux > max:
-                    if int(piece.values[0].value) == int(edges[0]):
+                    if int(piece.split(":")[0]) == int(edges[0]):
                             max = aux
                             index = i
                             flip = True
                             edge = 0
-                    elif int(piece.values[1].value) == int(edges[0]):
+                    elif int(piece.split(":")[1]) == int(edges[0]):
                             max = aux
                             index = i
                             flip = False
                             edge = 0
-                    elif int(piece.values[0].value) == int(edges[1]):
+                    elif int(piece.split(":")[0]) == int(edges[1]):
                             max = aux
                             index = i
                             flip = False
                             edge = 1
-                    elif int(piece.values[1].value) == int(edges[1]):
+                    elif int(piece.split(":")[1]) == int(edges[1]):
                             max = aux
                             index = i
                             flip = True
@@ -110,12 +114,14 @@ class Player:
             if edge is not None:
                 piece = self.hand.pop(index)
                 if flip:
-                    piece.flip()
+                    piece = piece.split(":")[0]+":"+piece.split(":")[1]
+                    #piece.flip()
                 self.updatePieces(-1)
                 res = {"action": "play_piece", "piece": piece,"edge":edge,"win":self.checkifWin(), "score": self.score}
             # if there is no piece to play try to pick a piece, if there is no piece to pick pass
             else:
                 if len(self.deck)>0:
+                    print("picking piece from deck")
                     res = self.pickPiece()
                 else:
                     res = {"action": "pass_play", "piece": None, "edge": edge,"win":self.checkifWin(), "score": self.score}
@@ -182,18 +188,18 @@ class Player:
                 if ciphertext in k_map:
                     plaintext = self.decipher(ciphertext, k_map)
                     aux.append(base64.b64encode(plaintext))
-            t = aux
-            aux = []
+            if aux != []:
+                t = aux
+                aux = []
         k_map = dict()
         for ciphertext in t:
             if ciphertext in self.key_map:
                 plaintext = self.decipher(ciphertext, self.key_map)
                 k_map[ciphertext] = self.key_map[ciphertext]
-        print(len(k_map.keys()))
         return k_map
 
-    def decipher_all(self, k_map_arr):
-        t = self.hand2
+    def decipher_all(self, tiles, k_map_arr):
+        t = tiles
         aux = []
         last = len(k_map_arr)
         count = 0
@@ -210,8 +216,7 @@ class Player:
                 t = aux
                 aux = []
         for i in t:
-            x = tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))
-            print(x[1])
+            self.indexes.append(tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))[1])
 
     def decipher(self, ciphertext, k_map):
         c = base64.b64decode(ciphertext)
@@ -225,15 +230,15 @@ class Player:
         return plaintext
 
     def pick_tile(self, tiles):
-        if len(self.hand2) < self.pieces_per_player:
-            if random.choice([i for i in range(100)]) > 99:
-                if random.choice([i for i in range(100)]) >= 50:
-                    ids = [id for id in range(len(tiles))]
-                    choice = tiles.pop(random.choice(ids))
-                    ids = [id for id in range(len(self.hand2))]
-                    tiles.append(self.hand2.pop(random.choice(ids)))
-                    self.hand2.append(choice)
-                return tiles
+        if random.choice([i for i in range(100)]) > 99 or len(self.hand2) == self.pieces_per_player:
+            if random.choice([i for i in range(100)]) >= 50:
+                ids = [id for id in range(len(tiles))]
+                choice = tiles.pop(random.choice(ids))
+                ids = [id for id in range(len(self.hand2))]
+                tiles.append(self.hand2.pop(random.choice(ids)))
+                self.hand2.append(choice)
+            return tiles
+        else:
             ids = [id for id in range(len(tiles))]
             choice = tiles.pop(random.choice(ids))
             self.hand2.append(choice)
@@ -247,6 +252,52 @@ class Player:
         digest.update(self.r1)
         digest.update(self.r2)
         self.bitcommit = digest.finalize()
+
+    def fill_array(self, array):
+        arr = array
+        print("indexes: "+str(self.indexes))
+        if random.choice([i for i in range(100)]) < 99 and self.indexes != []:
+            ids = [id for id in range(len(self.indexes))]
+            choice = self.indexes.pop(random.choice(ids))
+            print("choosed: "+str(choice))
+            priv, pub = self.genrate_rsa_key_pair()
+            self.index_map[choice] = priv
+            for i in range(len(arr)):
+                if arr[i][0] == str(choice):
+                    arr[i][1] = pub
+        return arr
+
+    def genrate_rsa_key_pair(self):
+        priv_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=4096,
+            backend=default_backend()
+        )
+        pub_key = priv_key.public_key()
+        return (priv_key, self.rsa_serialize_key(pub_key))
+    
+    def rsa_serialize_key(self, public_key):
+        pub_pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        return pub_pem
+
+    def reveal_tiles(self, array):
+        for i in range(len(array)):
+            if array[i][0] in self.index_map.keys():
+                tile = self.rsa_decrypt(array[i][1], self.index_map[array[i][0]])
+                self.hand.append(tile.decode('utf-8'))
+        print(self.hand)
+    
+    def rsa_decrypt(self, ciphertext, privkey):
+        plaintext = privkey.decrypt(ciphertext, as_padd.OAEP(
+                mgf=as_padd.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        return plaintext
 
 class Piece:
     values = []
@@ -274,16 +325,17 @@ class Deck:
     deck2 = []
     ps_deck = []
     pseudonym_map = dict()
+    idx = []
 
     def __init__(self,pieces_per_player=5):
         with open('pieces', 'r') as file:
             pieces = file.read()
-        for piece in pieces.split(","):
+        for piece in pieces.rstrip().split(","):
             piece = piece.replace(" ", "").split("-")
             p = Piece(piece[0], piece[1]) #added
             self.deck2.append(p.__str__()) #added
             self.deck.append(p) #altered
-
+        random.shuffle(self.deck2) #added
         self.pseudo_deck() #added
         self.npieces = len(self.deck)
         self.pieces_per_player = pieces_per_player
@@ -291,7 +343,7 @@ class Deck:
     #--------------------------------added-------------------------------
     def pseudo_deck(self):
         for i in range(len(self.deck2)):
-            ki = os.urandom(32)
+            ki = os.urandom(128)
             digest = hashes.Hash(hashes.SHA256(), default_backend())
             digest.update(self.deck2[i].encode('utf-8'))
             digest.update(ki)
@@ -328,7 +380,8 @@ class Deck:
             if aux != []:
                 t = aux
                 aux = []
-        print(self.check(t))
+        for i in t:
+            self.idx.append([tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))[1], None])
         
     def decipher(self, ciphertext, k_map):
         c = base64.b64decode(ciphertext)
@@ -340,6 +393,21 @@ class Deck:
         plaintext = b''
         plaintext = unpadder.update(decryptor.update(c_text)) + unpadder.finalize()
         return plaintext
+
+    def de_anonimyze(self):
+        for i in range(len(self.idx)):
+            ciphertext = self.rsa_encrypt(self.deck2[i].encode('utf-8'), self.idx[i][1])
+            self.idx[i][1] = ciphertext
+    
+    def rsa_encrypt(self, msg, pubkey):
+        pub = serialization.load_pem_public_key(pubkey, backend=default_backend())
+        ciphertext = pub.encrypt(msg,as_padd.OAEP(
+                mgf=as_padd.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        return ciphertext
     #--------------------------------------------------------------------
 
     def __str__(self):
