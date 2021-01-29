@@ -114,7 +114,7 @@ class Player:
             if edge is not None:
                 piece = self.hand.pop(index)
                 if flip:
-                    piece = piece.split(":")[0]+":"+piece.split(":")[1]
+                    piece = piece.split(":")[1]+":"+piece.split(":")[0]
                     #piece.flip()
                 self.updatePieces(-1)
                 res = {"action": "play_piece", "piece": piece,"edge":edge,"win":self.checkifWin(), "score": self.score}

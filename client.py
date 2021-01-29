@@ -106,7 +106,7 @@ class client():
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "de-anonymized":
             self.player.insertInHand(data["piece"])
-            msg = {"action": "get_game_propreties"}
+            msg = {"action": "ready_to_play"}
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------
         elif action == "host_start_game":
