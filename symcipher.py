@@ -21,7 +21,10 @@ class DiffieHellman:
     def __init__(self):
         self.private_key = None
         self.public_key = None
-        self.parameters = dh.generate_parameters(generator=2, key_size=2048, backend=default_backend())
+        self.p = 23
+        self.g = 5
+        self.parameters = dh.DHParameterNumbers(self.p, self.g).parameters(backend=default_backend())
+        
 
     def getExchangeKeys(self):
         self.private_key = self.parameters.generate_private_key()
@@ -40,7 +43,19 @@ class DiffieHellman:
                         ).derive(shared_key)
 
         return derived_key
-        
+
+### test ###
+# alice = DiffieHellman()
+# bob = DiffieHellman()
+
+# alice.getExchangeKeys()
+# bob.getExchangeKeys()
+
+# ss = alice.getSharedKey(bob.public_key)
+# print(ss)
+# ss1 = bob.getSharedKey(alice.public_key)
+# print(ss1)
+
 ####### Diffie Hellman Key Exchange Algorithm made by us #######
 
 # class DiffieHellman:
