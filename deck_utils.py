@@ -16,7 +16,6 @@ class Player:
         self.socket = socket
         self.hand = []
         self.num_pieces = 0
-        self.n_pieces = 0 #added
         self.score = 0
         self.host=False
         self.pieces_per_player=pieces_per_player
@@ -25,6 +24,7 @@ class Player:
         self.nopiece = False
         self.deck = []
         #-------added-------------
+        self.n_pieces = 0
         self.hand2 = []
         self.d_hand = []
         self.ciphered_deck = []

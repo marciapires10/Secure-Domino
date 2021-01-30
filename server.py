@@ -370,7 +370,7 @@ class TableManager:
                     next_p = self.game.nextPlayer()
                     if data["piece"]is not None:
                         player.nopiece = False
-                        player.updatePieces(-1)
+                        player.n_pieces += 1
 
                         ## Check if piece is not on deck
                         try:
