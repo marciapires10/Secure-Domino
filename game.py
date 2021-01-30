@@ -38,6 +38,7 @@ class Game:
         player = Player(name,socket,pieces)
         print(player)
         self.players.append(player)
+        return player
 
     def hasHost(self):
         return len(self.players)>0
