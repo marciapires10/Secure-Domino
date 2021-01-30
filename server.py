@@ -13,6 +13,7 @@ from game import Game
 import signal
 import Colors
 import time
+from symcipher import DiffieHellman
 
 
 # Main socket code from https://docs.python.org/3/howto/sockets.html
@@ -50,6 +51,7 @@ class TableManager:
         self.ready = 0
         self.tmp_k_map = []
         #---------------------------------
+        self.a = []
 
 
         while self.inputs:
@@ -134,8 +136,14 @@ class TableManager:
                     serialNumber = authSerialNumber()  #authentication initial
                     dicSerialNumber[data["msg"]] = serialNumber
 
-                    self.game.addPlayer(data["msg"],sock,self.game.deck.pieces_per_player) # Adding host
-                    msg = {"action": "you_host", "msg": Colors.BRed+"You are the host of the game"+Colors.Color_Off}
+                    player = self.game.addPlayer(data["msg"],sock,self.game.deck.pieces_per_player) # Adding host
+                    dh = DiffieHellman(103079, 7)
+                    self.a.append([player,dh])
+                    public_key = base64.b64encode(dh.public_key).decode('utf-8')
+
+                    msg = {"action": "you_host", "msg": Colors.BRed+"You are the host of the game"+Colors.Color_Off, "public_key": public_key}
+                    dh.getSharedKey(data["public_key"])
+                    print(dh.shared_key)
                     print("User "+Colors.BBlue+"{}".format(data["msg"])+Colors.Color_Off+" has created a game, he is the first to join")
                     return pickle.dumps(msg)
                 else:
@@ -148,13 +156,19 @@ class TableManager:
                             serialNumber = authSerialNumber()  #authentication initial
                             dicSerialNumber[data["msg"]] = serialNumber
 
-                            self.game.addPlayer(data["msg"], sock,self.game.deck.pieces_per_player)  # Adding player
+                            player = self.game.addPlayer(data["msg"],sock,self.game.deck.pieces_per_player) # Adding host
+                            dh = DiffieHellman(103079, 7)
+                            self.a.append([player,dh])
+                            public_key = base64.b64encode(dh.public_key).decode('utf-8')
                             msg = {"action": "new_player", "msg": "New Player "+Colors.BGreen+data["msg"]+Colors.Color_Off+" registered in game",
-                                   "nplayers": self.game.nplayers, "game_players": self.game.max_players}
+                                   "nplayers": self.game.nplayers, "game_players": self.game.max_players, "public_key": public_key}
                             print("User "+Colors.BBlue+"{}".format(data["msg"])+Colors.Color_Off+" joined the game")
                             
+                            dh.getSharedKey(data["public_key"])
+                            print(dh.shared_key)
+
                             #send info to all players
-                            self.send_all(msg)
+                            self.send_to(msg, player)
 
                             #check if table is full
                             if self.game.isFull():
@@ -164,13 +178,17 @@ class TableManager:
                                 msg = {"action": "waiting_for_host", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off, "players": players_name}
                                 #------------------------------------------
                                 self.send_all(msg,sock)
-                            return pickle.dumps(msg)
+                                return pickle.dumps(msg)
+                            return
                     else:
                         msg = {"action": "disconnect", "msg": "You are already in the game"}
                         print("User {} tried to join a game he was already in".format(data["msg"]))
                         return pickle.dumps(msg)
 
             #-------------------altered-------------------------------------
+            if action == "player_sessions":
+                
+                return
             if action == "start_game":
                 # msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                 # self.send_all(msg,sock)

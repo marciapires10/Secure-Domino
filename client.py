@@ -10,9 +10,11 @@ import string
 from deck_utils import Player
 import random
 import time
+from symcipher import DiffieHellman
 
 
 class client():
+
     def __init__(self, host, port):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -26,6 +28,7 @@ class client():
         self.p_hand = []
         self.receiveData()
         self.players = [] #list of players
+        self.dh = None
 
     def receiveData(self):
         while True:
@@ -40,25 +43,37 @@ class client():
         if action == "login":
             nickname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) #input(data["msg"])
             print("Your name is "+Colors.BBlue+nickname+Colors.Color_Off)
-            msg = {"action": "req_login", "msg": nickname}
+            self.dh = DiffieHellman(103079, 7)
+            public_key = base64.b64encode(self.dh.public_key).decode('utf-8')
+            print(public_key)
+            msg = {"action": "req_login", "msg": nickname, "public_key": public_key}
             self.player = Player(nickname,self.sock,data["max_pieces"])
             self.sock.send(pickle.dumps(msg))
             return
             # todo login
         elif action == "you_host":
             self.player.host=True
+            print(data["public_key"])
+            self.dh.getSharedKey(data["public_key"])
+            print(self.dh.shared_key)
         elif action == "new_player":
+            print(data["public_key"])
+            self.dh.getSharedKey(data["public_key"])
+            print(self.dh.shared_key)
             print(data["msg"])
             print("There are "+str(data["nplayers"])+"\\"+str(data["game_players"]))
 
         elif action == "waiting_for_host":
             #--------------------added--------------------------
-            self.players = [p for p in data["players"] if p != self.player.name]
+            self.players = [[p,None] for p in data["players"] if p != self.player.name]
             print(self.players)
             #---------------------------------------------------
             if self.player.host:
                 input(Colors.BGreen+"PRESS ENTER TO START THE GAME"+Colors.Color_Off)
-                msg = {"action": "start_game"}
+                # p = self.players[0]
+                # pdh = DiffieHellman(23, 5)
+                # ppublic_key = base64.b64encode(self.pdh.public_key).decode('utf-8')
+                # msg = {"action": "player_sessions"}
                 self.sock.send(pickle.dumps(msg))
                 print("Sent ", msg)
             else:
