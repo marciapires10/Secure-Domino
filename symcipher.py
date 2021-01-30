@@ -3,13 +3,14 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.asymmetric import dh
 import secrets
-from cryptography.hazmat.primitives import hashes, padding
+from cryptography.hazmat.primitives import hashes, padding, serialization
 from cryptography.hazmat.backends import default_backend
 import base64
 #from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 import random
 import pickle
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 ### First we generate a shared secret using DH, after that we apply KDF that will result in a shared key.
 ### Then we use that shared key in AES.
@@ -18,31 +19,33 @@ import pickle
 
 class DiffieHellman:
 
-    def __init__(self):
+    def __init__(self, p, g):
         self.private_key = None
         self.public_key = None
-        self.p = 23
-        self.g = 5
+        self.shared_key = None
+        self.p = p
+        self.g = g
         self.parameters = dh.DHParameterNumbers(self.p, self.g).parameters(backend=default_backend())
-        
+        self.getExchangeKeys()
 
     def getExchangeKeys(self):
         self.private_key = self.parameters.generate_private_key()
-        self.public_key = self.private_key.public_key()
+        self.public_key = self.private_key.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
 
     def getSharedKey(self, peer_public_key):
-        shared_key = self.private_key.exchange(peer_public_key)
-        print(str(shared_key))
+        print(peer_public_key)
+        pub = serialization.load_der_public_key(base64.b64decode(peer_public_key.encode('utf-8')), backend=default_backend())
+        shared_secret = self.private_key.exchange(pub)
+
 
         # Key derivation
-        derived_key = HKDF(algorithm=hashes.SHA256(),
+        self.shared_key = HKDF(algorithm=hashes.SHA256(),
                             length=32,
                             salt=None,
                             info=b'handshake data',
                             backend=default_backend()
-                        ).derive(shared_key)
+                        ).derive(shared_secret)
 
-        return derived_key
 
 ### test ###
 # alice = DiffieHellman()
