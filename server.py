@@ -13,7 +13,7 @@ from game import Game
 import signal
 import Colors
 import time
-from symcipher import DiffieHellman
+from security import DiffieHellman
 
 
 # Main socket code from https://docs.python.org/3/howto/sockets.html
@@ -488,9 +488,6 @@ class TableManager:
     # Cheating mechanism
     def check_piece_in_deck(self,piece,deck):
         return piece in deck
-
-    def sym_encrypt_msg(self, msg, player):
-        print(a)
 
     
 try:

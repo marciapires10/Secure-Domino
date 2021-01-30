@@ -10,7 +10,7 @@ import string
 from deck_utils import Player
 import random
 import time
-from symcipher import DiffieHellman
+from security import DiffieHellman
 
 
 class client():
