@@ -30,7 +30,7 @@ class DiffieHellman:
 
     def getExchangeKeys(self):
         self.private_key = self.parameters.generate_private_key()
-        self.public_key = self.private_key.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)
+        self.public_key = base64.b64encode(self.private_key.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)).decode('utf-8')
 
     def getSharedKey(self, peer_public_key):
         print(peer_public_key)

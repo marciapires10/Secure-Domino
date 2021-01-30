@@ -139,11 +139,10 @@ class TableManager:
                     player = self.game.addPlayer(data["msg"],sock,self.game.deck.pieces_per_player) # Adding host
                     dh = DiffieHellman(103079, 7)
                     self.a.append([player,dh])
-                    public_key = base64.b64encode(dh.public_key).decode('utf-8')
+                    public_key = dh.public_key
 
                     msg = {"action": "you_host", "msg": Colors.BRed+"You are the host of the game"+Colors.Color_Off, "public_key": public_key}
                     dh.getSharedKey(data["public_key"])
-                    print(dh.shared_key)
                     print("User "+Colors.BBlue+"{}".format(data["msg"])+Colors.Color_Off+" has created a game, he is the first to join")
                     return pickle.dumps(msg)
                 else:
@@ -159,13 +158,12 @@ class TableManager:
                             player = self.game.addPlayer(data["msg"],sock,self.game.deck.pieces_per_player) # Adding host
                             dh = DiffieHellman(103079, 7)
                             self.a.append([player,dh])
-                            public_key = base64.b64encode(dh.public_key).decode('utf-8')
+                            public_key = dh.public_key
                             msg = {"action": "new_player", "msg": "New Player "+Colors.BGreen+data["msg"]+Colors.Color_Off+" registered in game",
                                    "nplayers": self.game.nplayers, "game_players": self.game.max_players, "public_key": public_key}
                             print("User "+Colors.BBlue+"{}".format(data["msg"])+Colors.Color_Off+" joined the game")
                             
                             dh.getSharedKey(data["public_key"])
-                            print(dh.shared_key)
 
                             #send info to all players
                             self.send_to(msg, player)
@@ -187,8 +185,33 @@ class TableManager:
 
             #-------------------altered-------------------------------------
             if action == "player_sessions":
-                
+                player = self.game.currentPlayer()
+                msg = {"action": "share_key"}
+                self.send_to(msg, player)
+                return 
+            if action == "send_dh":
+                for p in self.game.players:
+                    if p.name == data["send_to"]:
+                        msg = {"action": "get_key", "from": data["from"], "key": data["key"]}
+                        self.send_to(msg, p)
+                        return
+            if action == "done":
+                msg = {"action": "dh_response", "from": data["from"], "key": data["key"]}
+                player = self.game.currentPlayer()
+                self.send_to(msg, player)
                 return
+
+            if action == "sent":
+                if self.game.player_index == self.game.nplayers-1:
+                    player = self.game.nextPlayer()
+                    msg = {"action": "host_start", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off}
+                    self.send_to(msg, player)
+                    return
+                player = self.game.nextPlayer()
+                msg = {"action": "share_key"}
+                self.send_to(msg, player)
+                return 
+                
             if action == "start_game":
                 # msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                 # self.send_all(msg,sock)
@@ -466,7 +489,10 @@ class TableManager:
     def check_piece_in_deck(self,piece,deck):
         return piece in deck
 
+    def sym_encrypt_msg(self, msg, player):
+        print(a)
 
+    
 try:
     NUM_PLAYERS = int(sys.argv[1])
 except:

@@ -29,6 +29,7 @@ class client():
         self.receiveData()
         self.players = [] #list of players
         self.dh = None
+        self.dh_idx = 0
 
     def receiveData(self):
         while True:
@@ -44,7 +45,7 @@ class client():
             nickname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) #input(data["msg"])
             print("Your name is "+Colors.BBlue+nickname+Colors.Color_Off)
             self.dh = DiffieHellman(103079, 7)
-            public_key = base64.b64encode(self.dh.public_key).decode('utf-8')
+            public_key = self.dh.public_key
             print(public_key)
             msg = {"action": "req_login", "msg": nickname, "public_key": public_key}
             self.player = Player(nickname,self.sock,data["max_pieces"])
@@ -53,11 +54,11 @@ class client():
             # todo login
         elif action == "you_host":
             self.player.host=True
-            print(data["public_key"])
+            print("Host public key", data["public_key"])
             self.dh.getSharedKey(data["public_key"])
             print(self.dh.shared_key)
         elif action == "new_player":
-            print(data["public_key"])
+            print("New player public key", data["public_key"])
             self.dh.getSharedKey(data["public_key"])
             print(self.dh.shared_key)
             print(data["msg"])
@@ -65,19 +66,48 @@ class client():
 
         elif action == "waiting_for_host":
             #--------------------added--------------------------
-            self.players = [[p,None] for p in data["players"] if p != self.player.name]
+            self.players = [[p,DiffieHellman(23, 5)] for p in data["players"] if p != self.player.name]
             print(self.players)
             #---------------------------------------------------
             if self.player.host:
-                input(Colors.BGreen+"PRESS ENTER TO START THE GAME"+Colors.Color_Off)
-                # p = self.players[0]
-                # pdh = DiffieHellman(23, 5)
-                # ppublic_key = base64.b64encode(self.pdh.public_key).decode('utf-8')
-                # msg = {"action": "player_sessions"}
+                msg = {"action": "player_sessions"}
                 self.sock.send(pickle.dumps(msg))
                 print("Sent ", msg)
             else:
                 print(data["msg"])
+        elif action == "share_key":
+            for p in self.players:
+                if p[1].shared_key == None:
+                    msg = {"action": "send_dh", "key": p[1].public_key, "send_to": p[0], "from": self.player.name}
+                    self.sock.send(pickle.dumps(msg))
+        elif action == "get_key":
+            for p in self.players:
+                print("p[0]",p[0])
+                print("data[from]", data["from"])
+                if p[0] == data["from"]:
+                    print("aqui a public key", p[1].public_key)
+                    p[1].getSharedKey(data["key"])
+                    print("SHAAARED KEY from " + data["from"] + " " + str(p[1].shared_key))
+                msg = {"action": "done", "from": self.player.name, "key": p[1].public_key}
+                self.sock.send(pickle.dumps(msg))
+        elif action =="dh_response":
+            for p in self.players:
+                if p[0] == data["from"]:
+                    p[1].getSharedKey(data["key"])
+                    print("SHAAARED KEY from " + data["from"] + " " + str(p[1].shared_key))
+            if None not in [p[1].shared_key for p in self.players]:  
+                msg = {"action": "sent"}
+                self.sock.send(pickle.dumps(msg))
+            else:
+                for p in self.players:
+                    if p[1].shared_key == None:
+                        msg = {"action": "send_dh", "key": p[1].public_key, "send_to": p[0], "from": self.player.name}
+                        self.sock.send(pickle.dumps(msg))
+
+        elif action == "host_start":
+            input(Colors.BGreen+"PRESS ENTER TO START THE GAME"+Colors.Color_Off)
+            msg = {"action": "start_game"}
+            self.sock.send(pickle.dumps(msg))
         #---------------added----------------------------
         elif data["action"] == "scrumble":
             scrumble_deck = data["deck"]
