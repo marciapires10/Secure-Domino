@@ -216,7 +216,7 @@ class Player:
                 t = aux
                 aux = []
         for i in t:
-            self.indexes.append(tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))[1])
+            self.indexes.append(tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))[-1])
 
     def decipher(self, ciphertext, k_map):
         c = base64.b64decode(ciphertext)
@@ -381,7 +381,7 @@ class Deck:
                 t = aux
                 aux = []
         for i in t:
-            self.idx.append([tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))[1], None])
+            self.idx.append([tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))[-1], None])
         
     def decipher(self, ciphertext, k_map):
         c = base64.b64decode(ciphertext)
