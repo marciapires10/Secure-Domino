@@ -1,7 +1,8 @@
 import os
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.asymmetric import dh
+from cryptography.hazmat.primitives.asymmetric import dh, rsa
+from cryptography.exceptions import InvalidSignature
 import secrets
 from cryptography.hazmat.primitives import hashes, padding, serialization, hmac
 from cryptography.hazmat.backends import default_backend
@@ -149,19 +150,70 @@ class SymmetricCipher:
     #msg_result = decrypt_message(ciphertext, key)
     #print("Mensagem resultante:", msg_result)
 
-#### HMAC: Hashed Message Authentication Code #### 
+#### RSA for digital signature ####
 
-class HMAC():
+class RSA():
 
-    def hmac_update(self, key, msg):
-        h = hmac.HMAC(key, hashes.SHA256(), backend=default_backend())
-        h.update(msg)
-        print(h)
+    def __init__(self):
+        self.private_key = None
+        self.public_key = None
+        self.generateKeys()
 
-        return h.finalize()
+    def generateKeys(self):
+        self.private_key = rsa.generate_private_key(
+                            public_exponent=65537,
+                            key_size=2048,
+                            backend=default_backend()
+                            )
+        self.public_key = self.private_key.public_key()
 
-    def hmac_verify(self, key, hmac_msg, msg):
+        return self.private_key, self.public_key
 
-        h = hmac.HMAC(key, hashes.SHA256(), backend=default_backend())
-        h.update(msg)
-        return h.verify(hmac_msg)
+    def asym_encrypt(self, msg, key):
+        enc_msg = key.encrypt(
+                    msg,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None
+                    )
+        )
+
+        return enc_msg
+
+    def asym_decrypt(self, msg, key):
+        dec_msg = key.decrypt(
+                    msg,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None
+                    )       
+        )
+        return dec_msg
+
+    def signature(self, msg, key):
+        sign = key.sign(
+                    msg,
+                    padding.PSS(
+                        mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH
+                    ),
+                    hashes.SHA256()
+        )
+
+        return sign
+
+    def verifySignature(self, msg, key, sign):
+        try:
+            key.verify(
+                    sign,
+                    msg,
+                    padding.PSS(
+                        mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH
+                    ),
+                    hashes.SHA256()
+            )
+        except InvalidSignature:
+            return False
