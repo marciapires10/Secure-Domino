@@ -261,10 +261,10 @@ class Player:
             choice = self.indexes.pop(random.choice(ids))
             print("choosed: "+str(choice))
             priv, pub = self.genrate_rsa_key_pair()
-            self.index_map[choice] = priv
             for i in range(len(arr)):
                 if arr[i][0] == str(choice):
                     arr[i][1] = pub
+                    self.index_map[choice] = priv
         return arr
 
     def genrate_rsa_key_pair(self):
@@ -396,7 +396,7 @@ class Deck:
 
     def de_anonimyze(self):
         for i in range(len(self.idx)):
-            ciphertext = self.rsa_encrypt(self.deck2[i].encode('utf-8'), self.idx[i][1])
+            ciphertext = self.rsa_encrypt(self.deck2[self.idx[i][0]].encode('utf-8'), self.idx[i][1])
             self.idx[i][1] = ciphertext
     
     def rsa_encrypt(self, msg, pubkey):

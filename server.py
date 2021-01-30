@@ -265,7 +265,8 @@ class TableManager:
                 player = self.game.currentPlayer()
                 player.bitcommit, player.r1 = data["bitcommit"], data["r1"]
                 if self.game.player_index == self.game.nplayers-1:
-                    self.p_tiles = [d for d in self.game.s_deck + self.game.tiles if d in self.game.tiles and d not in self.game.s_deck]
+                    self.p_tiles = [d for d in self.game.tiles if d in self.game.tiles and d not in self.game.s_deck]
+                    print(len(self.p_tiles))
                     player = self.d_players[self.d_players_idx]
                     msg = {"action": "key_map", "key_map": self.p_key_map, "tiles": self.p_tiles}
                     self.send_to(msg, player)
