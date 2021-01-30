@@ -43,9 +43,12 @@ class TableManager:
         self.message_queue = {}  # queue of messages
         #--------------added--------------
         self.d_players = []
+        self.d_players_idx = 0
         self.p_key_map = []
         self.p_tiles = []
         self.deciphered = 0
+        self.ready = 0
+        self.tmp_k_map = []
         #---------------------------------
 
 
@@ -189,6 +192,7 @@ class TableManager:
                 else:
                     player = self.game.nextPlayer()
                     self.d_players.append(player)
+                    self.d_players_idx += 1
                     msg = {"action": "scrumble", "deck": data["deck"]}
                     self.send_to(msg, player)
                     return
@@ -220,9 +224,8 @@ class TableManager:
                 player = self.game.currentPlayer()
                 player.bitcommit, player.r1 = data["bitcommit"], data["r1"]
                 if self.game.player_index == self.game.nplayers-1:
-                    print([p.bitcommit for p in self.game.players])
                     self.p_tiles = [d for d in self.game.s_deck + self.game.tiles if d in self.game.tiles and d not in self.game.s_deck]
-                    player = self.d_players.pop(-1)
+                    player = self.d_players[self.d_players_idx]
                     msg = {"action": "key_map", "key_map": self.p_key_map, "tiles": self.p_tiles}
                     self.send_to(msg, player)
                 else:
@@ -232,32 +235,75 @@ class TableManager:
                 return
             if action == "key_map":
                 self.p_key_map.append(data["key_map"])
-                for c in self.p_key_map:
-                    print(len(c))
-                input()
-                if self.d_players == []:
+                if self.d_players_idx == 0:
+                    self.d_players_idx = len(self.d_players)-1
                     self.game.deck.decipher_all(self.p_tiles, self.p_key_map)
                     msg = {"action": "decipher", "key_map": self.p_key_map}
                     self.send_all(msg,sock)
                     return pickle.dumps(msg)
                 else:
-                    player = self.d_players.pop(-1)
+                    self.d_players_idx -= 1
+                    player = self.d_players[self.d_players_idx]
                     msg = {"action": "key_map", "key_map": self.p_key_map, "tiles": self.p_tiles}
                     self.send_to(msg, player)
                     return
             if action == "deciphered":
                 self.deciphered += 1
                 if self.deciphered == self.game.max_players:
-                    print("ok")
-                    input("wait")
+                    msg = {"action": "fill_array", "arr": self.game.deck.idx}
+                    player = self.game.currentPlayer()
+                    self.send_to(msg, player)
+                return
+            if action == "filled":
+                self.game.deck.idx = data["arr"]
+                if None not in [i[1] for i in data["arr"]]:
+                    self.game.deck.de_anonimyze()
+                    msg = {"action": "reveal_tiles", "arr": self.game.deck.idx}
+                    #msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
+                    self.send_all(msg,sock)
+                    return pickle.dumps(msg)
+                else:
+                    for pl in self.game.players:
+                        if pl.name == data["next_player"]:
+                            player = pl
+                    msg = {"action": "fill_array", "arr":self.game.deck.idx}
+                    self.send_to(msg, player)
+                return
+            if action == "ready":
+                self.ready += 1
+                if self.ready >= self.game.nplayers:
                     msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                     self.send_all(msg,sock)
                     return pickle.dumps(msg)
                 return
+            if action == "piece_key":
+                print(data["rec"])
+                self.p_key_map[int(data["rec"])].update(data["key_map"])
+                self.tmp_k_map.append(data["key_map"])
+                if self.d_players_idx == 0:
+                    self.d_players_idx = len(self.d_players)-1
+                    self.game.deck.decipher_all([data["piece"]], self.p_key_map)
+                    msg = {"action": "decipher_piece", "key_map": self.p_key_map}
+                    self.tmp_k_map = []
+                    player = self.game.currentPlayer()
+                    self.send_to(msg, player)
+                    return
+                else:
+                    self.d_players_idx -= 1
+                    player = self.d_players[self.d_players_idx]
+                    msg = {"action": "piece_key", "piece": data["piece"], "key_map": self.p_key_map, "rec": data["rec"]}
+                    self.send_to(msg, player)
+                    return
+            if action == "de_anonymize":
+                piece = self.game.deck.deck2[int(data["idx"])]
+                msg = {"action": "de-anonymized", "piece": piece}
+                player = self.game.currentPlayer()
+                player.n_pieces += 1
+                self.send_to(msg, player)
+                return
             #-------------------------------------------------------------
 
             if action == "ready_to_play":
-                input("wait")
                 msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
                 self.send_all(msg,sock)
                 return pickle.dumps(msg)
@@ -300,18 +346,23 @@ class TableManager:
             #check if the request is from a valid player
             if  sock == player.socket:
                 if action == "get_piece":
-                    self.game.deck.deck=data["deck"]
-                    player.updatePieces(1)
-                    if not self.game.started:
-                        print("player pieces ", player.num_pieces)
-                        print("ALL-> ", self.game.allPlayersWithPieces())
-                        self.game.nextPlayer()
-                        if self.game.allPlayersWithPieces():
-                            self.game.started = True
-                            self.game.next_action = "play"
-                    msg = {"action": "rcv_game_propreties"}
-                    msg.update(self.game.toJson())
-                    self.send_all(msg,sock)
+                    self.game.s_deck=data["deck"]
+                    print(player.name)
+                    player = self.d_players[self.d_players_idx]
+                    msg = {"action": "piece_key", "piece": data["piece"], "key_map": self.p_key_map, "rec": -1}
+                    self.send_to(msg, player)
+                    return
+                    # player.updatePieces(1)
+                    # if not self.game.started:
+                    #     print("player pieces ", player.num_pieces)
+                    #     print("ALL-> ", self.game.allPlayersWithPieces())
+                    #     self.game.nextPlayer()
+                    #     if self.game.allPlayersWithPieces():
+                    #         self.game.started = True
+                    #         self.game.next_action = "play"
+                    # msg = {"action": "rcv_game_propreties"}
+                    # msg.update(self.game.toJson())
+                    # self.send_all(msg,sock)
 
                 elif action == "play_piece":
                     score = str(data["score"])
@@ -319,7 +370,7 @@ class TableManager:
                     next_p = self.game.nextPlayer()
                     if data["piece"]is not None:
                         player.nopiece = False
-                        player.updatePieces(-1)
+                        player.n_pieces += 1
 
                         ## Check if piece is not on deck
                         try:

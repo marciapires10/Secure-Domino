@@ -9,6 +9,7 @@ import Colors
 import string
 from deck_utils import Player
 import random
+import time
 
 
 class client():
@@ -82,8 +83,29 @@ class client():
             msg = {"action": "key_map", "key_map": k_map}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "decipher":
-            self.player.decipher_all(data["key_map"])
+            self.player.decipher_all(self.player.hand2, data["key_map"])
             msg = {"action": "deciphered"}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "fill_array":
+            arr = self.player.fill_array(data["arr"])
+            next_player = random.choice(self.players)
+            msg = {"action": "filled", "arr": arr, "next_player": next_player}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "reveal_tiles":
+            self.player.reveal_tiles(data["arr"])
+            msg = {"action": "ready"}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "piece_key":
+            k_map = self.player.decipher_tiles([data["piece"]], data["key_map"])
+            msg = {"action": "piece_key", "key_map": k_map, "rec": int(data["rec"])+1, "piece": data["piece"]}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "decipher_piece":
+            self.player.decipher_all([self.player.tmp_piece], data["key_map"])
+            msg = {"action": "de_anonymize", "idx": self.player.indexes[-1]}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "de-anonymized":
+            self.player.insertInHand(data["piece"])
+            msg = {"action": "ready_to_play"}
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------
         elif action == "host_start_game":
@@ -98,15 +120,14 @@ class client():
             self.player.pieces_per_player = data["pieces_per_player"]
             self.player.in_table = data["in_table"]
             self.player.deck = data["deck"]
-            self.p_deck = data["deck"] #added
             player_name = data["next_player"]
             if data["next_player"] == self.player.name:
                 player_name = Colors.BRed + "YOU" + Colors.Color_Off
-            print("deck -> " + ' '.join(map(str, self.player.deck)) + "\n")
-            print("hand -> " + ' '.join(map(str, self.player.hand)))
-            print("in table -> " + ' '.join(map(str, data["in_table"])) + "\n")
-            print("Current player ->",player_name)
-            print("next Action ->", data["next_action"])
+            # print("deck -> " + ' '.join(map(str, self.player.deck)) + "\n")
+            # print("hand -> " + ' '.join(map(str, self.player.hand)))
+            # print("in table -> " + ' '.join(map(str, data["in_table"])) + "\n")
+            # print("Current player ->",player_name)
+            # print("next Action ->", data["next_action"])
             if self.player.name == data["next_player"]:
 
                 if data["next_action"]=="get_piece":

@@ -9,7 +9,7 @@ class Game:
         self.players = []
         self.player_index = 0
         self.init_distribution = True
-        self.next_action="get_piece"
+        self.next_action="play"
         self.started = False
         self.all_ready_to_play = False
         #----------added-------------
@@ -53,6 +53,7 @@ class Game:
 
     def toJson(self):
         msg = {"next_player":self.players[self.player_index].name ,"nplayers":self.nplayers
-            ,"next_action":self.next_action}
-        msg.update(self.deck.toJson())
+            ,"next_action":self.next_action, "npieces": self.deck.npieces, "pieces_per_player": self.deck.pieces_per_player
+            ,"in_table": self.deck.in_table, "deck": self.s_deck}
+        #msg.update(self.deck.toJson())
         return msg
