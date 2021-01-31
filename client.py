@@ -70,7 +70,7 @@ class client():
             print(self.players)
             #---------------------------------------------------
             if self.player.host:
-                msg = {"action": "player_sessions"}
+                msg = {"action": "start_game"}
                 self.sock.send(pickle.dumps(msg))
                 print("Sent ", msg)
             else:
@@ -117,7 +117,7 @@ class client():
         elif data["action"] == "select":
             tiles = self.player.pick_tile(data["deck"])
             next_player = random.choice(self.players)
-            msg = {"action": "selected", "deck": tiles, "next_player": next_player}
+            msg = {"action": "selected", "deck": tiles, "next_player": next_player[0]}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "commitment":
             self.player.bitcommitment()
@@ -134,7 +134,7 @@ class client():
         elif data["action"] == "fill_array":
             arr = self.player.fill_array(data["arr"])
             next_player = random.choice(self.players)
-            msg = {"action": "filled", "arr": arr, "next_player": next_player}
+            msg = {"action": "filled", "arr": arr, "next_player": next_player[0]}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "reveal_tiles":
             self.player.reveal_tiles(data["arr"])
@@ -173,6 +173,16 @@ class client():
             # print("in table -> " + ' '.join(map(str, data["in_table"])) + "\n")
             # print("Current player ->",player_name)
             # print("next Action ->", data["next_action"])
+            if "previous_player" in data.keys():
+                if data["previous_player"] == self.player.name:
+                    print("It was my turn.")
+                elif "piece_played" in data.keys():
+                    for p in self.player.start_hand:
+                        print(p)
+                        if str(data["piece_played"]) == str(p):
+                            print(str(data["previous_player"]) + " is cheating.")
+                            print(data["piece_played"])
+
             if self.player.name == data["next_player"]:
 
                 if data["next_action"]=="get_piece":

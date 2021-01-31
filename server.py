@@ -416,10 +416,10 @@ class TableManager:
 
                         ## Check if piece is not on deck
                         try:
-                            if self.check_piece_in_deck(data["piece"], self.game.deck.deck):
-                                print(str(self.game.currentPlayer().name) + " is cheating.")
+                            if self.check_piece_in_deck(data["piece"]):
+                                print(str(player.name) + " is cheating.")
                             else:
-                                print(str(self.game.currentPlayer().name) + " is not cheating.")
+                                print(str(player.name) + " is not cheating.")
                         except:
                             print("Deck problems")
 
@@ -487,8 +487,21 @@ class TableManager:
         sys.exit(0)
     
     # Cheating mechanism
-    def check_piece_in_deck(self,piece,deck):
-        return piece in deck
+    def check_piece_in_deck(self, piece):
+        print([p[0] for p in self.game.deck.idx])
+        print([[p,self.game.deck.deck2[p]] for p in range(len(self.game.deck.idx))])
+        piece2 = piece.split(":")[1]+":"+piece.split(":")[0]
+        print("Play piece: " + str(piece))
+        deck_idx = None
+        for i in range(len(self.game.deck.deck2)):
+            if str(self.game.deck.deck2[i]) == str(piece) or str(self.game.deck.deck2[i]) == str(piece2):
+                print("Found: " + str(i))
+                deck_idx = i
+                break
+        not_in_hand = True
+        print(deck_idx)
+        if not (str(deck_idx) in [p[0] for p in self.game.deck.idx]):
+            return True
 
     
 try:

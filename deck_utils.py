@@ -15,6 +15,7 @@ class Player:
         self.name = name
         self.socket = socket
         self.hand = []
+        self.all_hand = []
         self.num_pieces = 0
         self.score = 0
         self.host=False
@@ -63,6 +64,7 @@ class Player:
         print("picked piece: " + str(piece))
         self.num_pieces += 1
         self.hand.append(piece)
+        self.all_hand.append(piece)
         #self.hand.sort(key=lambda p : int(p.values[0].value)+int(p.values[1].value))
         return
 
@@ -260,9 +262,9 @@ class Player:
             ids = [id for id in range(len(self.indexes))]
             choice = self.indexes.pop(random.choice(ids))
             print("choosed: "+str(choice))
-            priv, pub = self.genrate_rsa_key_pair()
             for i in range(len(arr)):
                 if arr[i][0] == str(choice):
+                    priv, pub = self.genrate_rsa_key_pair()
                     arr[i][1] = pub
                     self.index_map[choice] = priv
         return arr
@@ -335,7 +337,7 @@ class Deck:
             p = Piece(piece[0], piece[1]) #added
             self.deck2.append(p.__str__()) #added
             self.deck.append(p) #altered
-        random.shuffle(self.deck2) #added
+        # random.shuffle(self.deck2) #added
         self.pseudo_deck() #added
         self.npieces = len(self.deck)
         self.pieces_per_player = pieces_per_player
@@ -396,7 +398,7 @@ class Deck:
 
     def de_anonimyze(self):
         for i in range(len(self.idx)):
-            ciphertext = self.rsa_encrypt(self.deck2[self.idx[i][0]].encode('utf-8'), self.idx[i][1])
+            ciphertext = self.rsa_encrypt(self.deck2[int(self.idx[i][0])].encode('utf-8'), self.idx[i][1])
             self.idx[i][1] = ciphertext
     
     def rsa_encrypt(self, msg, pubkey):
