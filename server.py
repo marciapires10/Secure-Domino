@@ -1,5 +1,5 @@
 from deck_utils import *
-from authentication import authSerialNumber, writeCSV
+from authentication import authSerialNumber, lerPublicKeyOfCard, writeCSV
 import socket
 import select
 import sys
@@ -14,12 +14,14 @@ import signal
 import Colors
 import time
 from security import DiffieHellman
+import string
+import random
 
+from Crypto.Cipher import AES
 
 # Main socket code from https://docs.python.org/3/howto/sockets.html
 # Select with sockets from https://steelkiwi.com/blog/working-tcp-sockets/
 
-dicSerialNumber = {}
 
 class TableManager:
 
@@ -50,9 +52,11 @@ class TableManager:
         self.deciphered = 0
         self.ready = 0
         self.tmp_k_map = []
+        self.authenticated = 0
+        self.dicSerialNumber = {}
+        self.challenge = ""
         #---------------------------------
         self.a = []
-
 
         while self.inputs:
             readable, writeable, exceptional = select.select(self.inputs, self.outputs, self.inputs)
@@ -94,6 +98,10 @@ class TableManager:
                 sock.close()
                 del self.message_queue[sock]
 
+
+    def random_token_generator(size=16, chars=string.ascii_uppercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))
+
     def send_all(self, msg, socket=None):
         if socket is None:
             socket=self.server
@@ -105,6 +113,11 @@ class TableManager:
                     self.outputs.append(sock)
         time.sleep(0.1) #give server time to send all messages
     
+    def send_to_socket(self, msg, socket):
+        self.message_queue[socket].put(pickle.dumps(msg))
+        if socket not in self.outputs:
+            self.outputs.append(socket)
+
     def send_to(self, msg, player):
         if player.socket is None:
             socket=self.server
@@ -112,7 +125,6 @@ class TableManager:
         self.message_queue[player.socket].put(pickle.dumps(msg))
         if player.socket not in self.outputs:
             self.outputs.append(player.socket)
-
 
     def send_host(self,msg):
         self.message_queue[self.game.host_sock].put(pickle.dumps(msg))
@@ -124,17 +136,40 @@ class TableManager:
         action = data["action"]
         print("\n"+action)
         if data:
-            if action == "hello":
-                #---------------------altered---------------------------
-                msg = {"action": "login", "msg": "Welcome to the server, what will be your name?", "max_pieces": self.game.deck.pieces_per_player}
-                #-------------------------------------------------------
+            if action == "authentication":
+                print("Trying Authentication... (creating challenge)")
+                self.challenge = bytes(''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(16)), 'utf-8')
+                msg = {"action": "authentication_2", "msg": self.challenge}
+                self.send_to_socket(msg,sock)
+                return
+
+            if action == "authentication_3":
+                try:
+                    signature = data["msg"]
+                    lerPublicKeyOfCard(signature, self.challenge)
+                    self.challenge = ""
+                    self.authenticated += 1
+                    print("Autenticado com SUCESSO no Servidor!!")
+                    msg = {"action": "login", "msg": "Welcome to the server, what will be your name?", "authentication":True ,"max_pieces": self.game.deck.pieces_per_player}
+                except:
+                    print("Falhou a Autenticação no Servidor")
+                    msg = {"action": "login", "msg": "Welcome to the server, what will be your name?", "authentication":False ,"max_pieces": self.game.deck.pieces_per_player}
+
                 return pickle.dumps(msg)
-            # TODO login mechanic is flawed, only nickname
+
+
+            # if action == "hello":
+            #     #---------------------altered---------------------------
+            #     msg = {"action": "login", "msg": "Welcome to the server, what will be your name?", "max_pieces": self.game.deck.pieces_per_player}
+            #     #-------------------------------------------------------
+            #     return pickle.dumps(msg)
+            
+            # TODO login mechanic is flawed, only nickname       
             if action == "req_login":
                 print("User {} requests login, with nickname {}".format(sock.getpeername(), data["msg"]))
                 if not self.game.hasHost():  # There is no game for this tabla manager
                     serialNumber = authSerialNumber()  #authentication initial
-                    dicSerialNumber[data["msg"]] = serialNumber
+                    self.dicSerialNumber[data["msg"]] = serialNumber
 
                     player = self.game.addPlayer(data["msg"],sock,self.game.deck.pieces_per_player) # Adding host
                     dh = DiffieHellman(103079, 7)
@@ -153,7 +188,7 @@ class TableManager:
                             return pickle.dumps(msg)
                         else:
                             serialNumber = authSerialNumber()  #authentication initial
-                            dicSerialNumber[data["msg"]] = serialNumber
+                            self.dicSerialNumber[data["msg"]] = serialNumber
 
                             player = self.game.addPlayer(data["msg"],sock,self.game.deck.pieces_per_player) # Adding host
                             dh = DiffieHellman(103079, 7)
@@ -172,12 +207,12 @@ class TableManager:
                             if self.game.isFull():
                                 #---------------altered--------------------
                                 players_name = [p.name for p in self.game.players]
+                                print(players_name)
                                 print(Colors.BIPurple+"The game is Full"+Colors.Color_Off)
                                 msg = {"action": "waiting_for_host", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off, "players": players_name}
                                 #------------------------------------------
                                 self.send_all(msg,sock)
-                                return pickle.dumps(msg)
-                            return
+                            return pickle.dumps(msg)
                     else:
                         msg = {"action": "disconnect", "msg": "You are already in the game"}
                         print("User {} tried to join a game he was already in".format(data["msg"]))
@@ -372,10 +407,9 @@ class TableManager:
                         msg = {"action": "agreement_result", "agreement_result": "Aproved"} 
                         self.send_all(msg,sock)
                         try:
-                            print(dicSerialNumber)
-                            serialNumber = dicSerialNumber[dicSerialNumber["win"]]
-                            points = dicSerialNumber["points"]
-                            writeCSV(serialNumber,int(points[dicSerialNumber["win"]]))
+                            serialNumber = self.dicSerialNumber[self.dicSerialNumber["win"]]
+                            points = self.dicSerialNumber["points"]
+                            writeCSV(serialNumber,int(points[self.dicSerialNumber["win"]]))
                         except:
                             print("Nobody win points because it's a draw")
                         
@@ -441,8 +475,8 @@ class TableManager:
                             for p in self.game.players:
                                 players_score[p.name] = p.score
                             msg = {"action": "end_game","winner":player.name, "players": players_score}
-                            dicSerialNumber["win"] = player.name
-                            dicSerialNumber["points"] = players_score
+                            self.dicSerialNumber["win"] = player.name
+                            self.dicSerialNumber["points"] = players_score
                     else:
                         msg = {"action": "rcv_game_propreties"}
                     msg.update(self.game.toJson())
@@ -507,5 +541,5 @@ class TableManager:
 try:
     NUM_PLAYERS = int(sys.argv[1])
 except:
-    NUM_PLAYERS = 3
+    NUM_PLAYERS = 2
 a = TableManager('localhost', 50000,NUM_PLAYERS)

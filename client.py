@@ -1,4 +1,4 @@
-from authentication import saveScore
+from authentication import lerPrivKeyOfCard
 import socket
 import os
 import sys
@@ -11,6 +11,11 @@ from deck_utils import Player
 import random
 import time
 from security import DiffieHellman
+import socket
+import getpass
+import hashlib
+from Crypto.Cipher import AES
+
 
 
 class client():
@@ -19,7 +24,7 @@ class client():
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.connect((host, port))
-        first_msg = {"action": "hello"}
+        first_msg = {"action": "authentication_3"}  #Mudar para authentication na Versão Final!
         self.sock.send(pickle.dumps(first_msg))
         self.player = None
         #-------added-------------
@@ -41,7 +46,28 @@ class client():
         data = pickle.loads(data)
         action = data["action"]
         print("\n"+action)
+        if action == "authentication_2":
+            try:
+                print("Trying Autenticação do cliente...")
+                challenge = data["msg"]  #challenge
+                signature = lerPrivKeyOfCard(challenge) #ler do cartão a chave privada
+                if signature==False:
+                    self.sock.close()
+                    print("\nTem de inserir o catão para ser Autenticado!")
+                    sys.exit(0)
+                msg = {"action": "authentication_3", "msg": signature} 
+                self.sock.send(pickle.dumps(msg))
+                return 
+            except:            
+                self.sock.close()
+                print("Falhou a autenticação no cliente")
+                sys.exit(0)
+        
         if action == "login":
+            # if data["authentication"] == False:       #Voltar a descomentar na Versão final!!
+            #     self.sock.close()
+            #     print("Cliente não Autenticado")
+            #     sys.exit(0)
             nickname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) #input(data["msg"])
             print("Your name is "+Colors.BBlue+nickname+Colors.Color_Off)
             self.dh = DiffieHellman(103079, 7)
