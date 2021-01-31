@@ -226,19 +226,15 @@ class TableManager:
             if action == "player_sessions":
                 for p in self.game.players:
                     if p.socket == sock:
-                        print(p.name)
                         msg = {"action": "share_key"}
                         self.send_to(msg, p)
                         return 
             if action == "send_dh":
-                print("from: "+data["from"])
-                print("to: "+data["send_to"])
                 sk = [p[1].shared_key for p in self.a if p[0].name == data["from"]][0]
                 verify = self.verify_sign(sk, data["sign"], data["key"])
                 key = self.symC.decrypt_message(data["key"], sk)
                 for pl in self.game.players:
                     if pl.name == data["send_to"]:
-                        print([[p[0].name, p[1].shared_key] for p in self.a])
                         sk = [p[1].shared_key for p in self.a if pl.name == p[0].name][0]
                         key = self.symC.encrypt_message(key, sk)
                         key_sign = self.hmac_sign(key, sk)
@@ -249,7 +245,6 @@ class TableManager:
                 sk = [p[1].shared_key for p in self.a if p[0].name == data["from"]][0]
                 verify = self.verify_sign(sk, data["sign"], data["key"])
                 key = self.symC.decrypt_message(data["key"], sk)
-                print("done from: "+data["from"])
                 for pl in self.game.players:
                     if pl.name == data["send_to"]:
                         sk = [p[1].shared_key for p in self.a if pl.name == p[0].name][0]
@@ -259,10 +254,8 @@ class TableManager:
                         self.send_to(msg, pl)
                         return
             if action == "sent":
-                print(self.game.player_index)
                 if self.game.player_index == self.game.nplayers-1:
                     player = self.game.nextPlayer()
-                    print(self.game.player_index)
                     msg = {"action": "host_start", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off}
                     self.send_to(msg, player)
                     return
@@ -331,7 +324,6 @@ class TableManager:
                 player.bitcommit, player.r1 = data["bitcommit"], data["r1"]
                 if self.game.player_index == self.game.nplayers-1:
                     self.p_tiles = [d for d in self.game.tiles if d in self.game.tiles and d not in self.game.s_deck]
-                    print(len(self.p_tiles))
                     player = self.d_players[self.d_players_idx]
                     msg = {"action": "key_map", "key_map": self.p_key_map, "tiles": self.p_tiles}
                     self.send_to(msg, player)
@@ -384,7 +376,6 @@ class TableManager:
                     return pickle.dumps(msg)
                 return
             if action == "piece_key":
-                print(data["rec"])
                 self.p_key_map[int(data["rec"])].update(data["key_map"])
                 self.tmp_k_map.append(data["key_map"])
                 if self.d_players_idx == 0:
@@ -412,15 +403,11 @@ class TableManager:
             #-------------------------------------------------------------
 
             if action == "ready_to_play":
-                msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
+                msg = {"action": "host_start_game", "msg": "ready to play"}
                 self.send_all(msg,sock)
                 return pickle.dumps(msg)
 
             if action == "get_game_propreties":
-                #---------------test------------------------
-                # for player in self.game.players:
-                #     print("player: "+str(player.name)+" bitcommit: "+str(player.bitcommit)+" r1: "+str(player.r1))
-                #-------------------------------------------
                 msg = {"action": "rcv_game_propreties"}
                 msg.update(self.game.toJson())
                 return pickle.dumps(msg)
@@ -459,17 +446,6 @@ class TableManager:
                     msg = {"action": "piece_key", "piece": data["piece"], "key_map": self.p_key_map, "rec": -1}
                     self.send_to(msg, player)
                     return
-                    # player.updatePieces(1)
-                    # if not self.game.started:
-                    #     print("player pieces ", player.num_pieces)
-                    #     print("ALL-> ", self.game.allPlayersWithPieces())
-                    #     self.game.nextPlayer()
-                    #     if self.game.allPlayersWithPieces():
-                    #         self.game.started = True
-                    #         self.game.next_action = "play"
-                    # msg = {"action": "rcv_game_propreties"}
-                    # msg.update(self.game.toJson())
-                    # self.send_all(msg,sock)
 
                 elif action == "play_piece":
                     score = str(data["score"])
@@ -493,7 +469,6 @@ class TableManager:
                                 print(str(player.name) + " is not cheating.")
                         except Exception as e:
                             print(e)
-                            print("Deck problems")
 
                         self.game.nextPlayer()
                         if data["edge"]==0:
@@ -619,9 +594,6 @@ class TableManager:
     
     # Cheating mechanism
     def check_piece_in_deck(self, piece):
-        # print("TABLE -> " + str(self.game.deck.in_table))
-        # print([p[0] for p in self.game.deck.idx])
-        # print([[p,self.game.deck.deck2[p]] for p in range(len(self.game.deck.idx))])
         piece2 = piece.split(":")[1]+":"+piece.split(":")[0]
         print("Play piece: " + str(piece))
         deck_idx = None
@@ -629,7 +601,6 @@ class TableManager:
             if str(self.game.deck.deck2[i]) == str(piece) or str(self.game.deck.deck2[i]) == str(piece2):
                 if str(piece) in self.game.deck.in_table or str(piece2) in self.game.deck.in_table:
                     return True
-                print("Found: " + str(i))
                 deck_idx = i
                 break
         if not (str(deck_idx) in [p[0] for p in self.game.deck.idx]):
@@ -638,7 +609,6 @@ class TableManager:
     # Sign messages
     def hmac_sign(self, msg, key):
         new_key = sha256(key).hexdigest()
-        print(new_key)
         data = self.hmac.hmac_update(new_key, msg)
 
         return data

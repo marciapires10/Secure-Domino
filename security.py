@@ -91,12 +91,6 @@ class DiffieHellman:
 
 #     return key
 
-
-### test ###
-
-# key_derivation = keyDerivation(alice_ss)
-# print(key_derivation)
-
 ########### Cifra simétrica usando AESGCM ############
 
 
@@ -135,20 +129,6 @@ class SymmetricCipher:
         plaintext = unpadder.update(pt) + unpadder.finalize()
 
         return plaintext
-
-    ### test ###
-    # key = keyDerivation(alice_ss)
-    # print(key)
-
-    # key = keyDerivation(bob_ss)
-    # print(key)
-    #original_msg = b'2]f\xb9a\xdf\x99\xc8\xd4'
-    #print("Mensagem original:", original_msg)
-    #ciphertext = encrypt_message(original_msg, key)
-    #print("Ciphertext:", ciphertext) 
-
-    #msg_result = decrypt_message(ciphertext, key)
-    #print("Mensagem resultante:", msg_result)
 
 
 #### HMAC: Hashed Message Authentication Code #### 

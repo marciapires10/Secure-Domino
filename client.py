@@ -25,7 +25,7 @@ class client():
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.connect((host, port))
-        first_msg = {"action": "authentication_3"}  #Mudar para authentication na Versão Final!
+        first_msg = {"action": "authentication"}  #Mudar para authentication na Versão Final!
         self.sock.send(pickle.dumps(first_msg))
         self.player = None
         #-------added-------------
@@ -46,7 +46,7 @@ class client():
     def handle_data(self, data):
         data = pickle.loads(data)
         action = data["action"]
-        print("\n"+action)
+        print("\n" + str(action))
         if action == "authentication_2":
             try:
                 print("Trying Autenticação do cliente...")
@@ -65,10 +65,10 @@ class client():
                 sys.exit(0)
         
         if action == "login":
-            # if data["authentication"] == False:       #Voltar a descomentar na Versão final!!
-            #     self.sock.close()
-            #     print("Cliente não Autenticado")
-            #     sys.exit(0)
+            if data["authentication"] == False:       #Voltar a descomentar na Versão final!!
+                self.sock.close()
+                print("Cliente não Autenticado")
+                sys.exit(0)
             nickname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) #input(data["msg"])
             print("Your name is "+Colors.BBlue+nickname+Colors.Color_Off)
             self.dh = DiffieHellman(103079, 7)
@@ -90,7 +90,6 @@ class client():
             print("New player public key", data["public_key"])
             self.dh.getSharedKey(data["public_key"])
             print(self.dh.shared_key)
-            print(data["msg"])
             print("There are "+str(data["nplayers"])+"\\"+str(data["game_players"]))
         #---------------------------added-----------------------------
         elif action == "start_sessions":
@@ -113,7 +112,6 @@ class client():
             if self.player.host:
                 msg = {"action": "start_game"}
                 self.sock.send(pickle.dumps(msg))
-                print("Sent ", msg)
 
         elif action == "share_key":
             print("me: "+self.player.name)
@@ -173,8 +171,6 @@ class client():
             ## verify signature
             verify = self.verify_sign(self.dh.shared_key, data["sign"], data["deck"])
             scrumble_deck = self.symC.decrypt_message(data["deck"], self.dh.shared_key)
-            #scrumble_deck = data["deck"]
-            #print("decrypt", str(scrumble_deck))
             self.player.cipher_tiles(pickle.loads(scrumble_deck))
             deck = self.symC.encrypt_message(pickle.dumps(self.player.ciphered_deck), self.dh.shared_key)
             sign = self.hmac_sign(deck, self.dh.shared_key)
@@ -209,7 +205,6 @@ class client():
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "piece_key":
             k_map = self.player.decipher_tiles([data["piece"]], data["key_map"])
-            print("Picked " + str(data["piece"]))
             msg = {"action": "piece_key", "key_map": k_map, "rec": int(data["rec"])+1, "piece": data["piece"]}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "decipher_piece":
@@ -222,10 +217,8 @@ class client():
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------
         elif action == "host_start_game":
-            print(data["msg"])
             msg = {"action": "get_game_propreties"}
             self.sock.send(pickle.dumps(msg))
-            print("Sent ", msg)
 
         elif action == "rcv_game_propreties":
             self.player.nplayers = data["nplayers"]
@@ -236,14 +229,7 @@ class client():
             player_name = data["next_player"]
             if data["next_player"] == self.player.name:
                 player_name = Colors.BRed + "YOU" + Colors.Color_Off
-            # print("deck -> " + ' '.join(map(str, self.player.deck)) + "\n")
-            # print("hand -> " + ' '.join(map(str, self.player.hand)))
-            # print("in table -> " + ' '.join(map(str, data["in_table"])) + "\n")
-            # print("Current player ->",player_name)
-            # print("next Action ->", data["next_action"])
             if "previous_player" in data.keys():
-                print("Previous Player")
-                print(data["previous_player"])
                 print("Piece: " + str(data["piece_played"]))
                 if data["previous_player"] == self.player.name:
                     print("It was my turn.")
@@ -310,10 +296,6 @@ class client():
                 agreement = "y"
             msg = {"action": "agreement","player": self.player.name, "choice":agreement}
             self.sock.send(pickle.dumps(msg))
-
-
-        elif action == "wait":
-            print(data["msg"])
 
         elif action =="disconnect":
             self.sock.close()

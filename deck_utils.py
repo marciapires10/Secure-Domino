@@ -84,7 +84,6 @@ class Player:
         else:
             edges = self.in_table[0].split(":")[0], self.in_table[len(self.in_table) - 1].split(":")[1]
             #edges = self.in_table[0].values[0].value, self.in_table[len(self.in_table) - 1].values[1].value
-            print(str(edges[0])+" "+str(edges[1]))
             max = 0
             index = 0
             edge = None
@@ -128,12 +127,9 @@ class Player:
             # if there is no piece to play try to pick a piece, if there is no piece to pick pass
             else:
                 if len(self.deck)>0:
-                    print("picking piece from deck")
                     res = self.pickPiece()
                 else:
                     res = {"action": "pass_play", "piece": None, "edge": edge,"win":self.checkifWin(), "score": self.score}
-            # print("To play -> "+str(piece))
-        print("Self score: " + str(self.score))
         return res
 
     #--------------------added----------------------------------------
@@ -262,11 +258,9 @@ class Player:
 
     def fill_array(self, array):
         arr = array
-        print("indexes: "+str(self.indexes))
         if random.choice([i for i in range(100)]) < 99 and self.indexes != []:
             ids = [id for id in range(len(self.indexes))]
             choice = self.indexes.pop(random.choice(ids))
-            print("choosed: "+str(choice))
             for i in range(len(arr)):
                 if arr[i][0] == str(choice):
                     priv, pub = self.genrate_rsa_key_pair()
@@ -294,7 +288,8 @@ class Player:
         for i in range(len(array)):
             if array[i][0] in self.index_map.keys():
                 tile = self.rsa_decrypt(array[i][1], self.index_map[array[i][0]])
-                self.hand.append(tile.decode('utf-8'))               
+                self.hand.append(tile.decode('utf-8'))
+                self.all_hand.append(tile.decode('utf-8'))               
         print(self.hand)
     
     def rsa_decrypt(self, ciphertext, privkey):
