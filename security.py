@@ -31,11 +31,11 @@ class DiffieHellman:
 
     def getExchangeKeys(self):
         self.private_key = self.parameters.generate_private_key()
-        self.public_key = base64.b64encode(self.private_key.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)).decode('utf-8')
+        self.public_key = base64.b64encode(self.private_key.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo))
 
     def getSharedKey(self, peer_public_key):
         print(peer_public_key)
-        pub = serialization.load_der_public_key(base64.b64decode(peer_public_key.encode('utf-8')), backend=default_backend())
+        pub = serialization.load_der_public_key(base64.b64decode(peer_public_key), backend=default_backend())
         shared_secret = self.private_key.exchange(pub)
 
 
@@ -103,36 +103,36 @@ class DiffieHellman:
 class SymmetricCipher:
 
     def encrypt_message(self, message, key):
-        print(str(message).encode('utf-8'))
-        
-        nonce = secrets.token_bytes(12)
-        ciphertext = nonce + AESGCM(key).encrypt(nonce, str(message).encode('utf-8'), b"")
 
-        # encryptor = cipher.encryptor()
-        # padder = padding.PKCS7(algorithms.AES.block_size).padder()
+        IV = os.urandom(algorithms.AES.block_size // 8)
+        cipher = Cipher(
+            algorithms.AES(key), 
+            modes.CBC(IV), 
+            default_backend()
+        )
+        encryptor = cipher.encryptor()
+        padder = padding.PKCS7(algorithms.AES.block_size).padder()
 
-        # padded = padder.update(message) + padder.finalize()
-        # ciphertext = encryptor.update(padded) + encryptor.finalize()
+        padded = padder.update(message) + padder.finalize()
+        ciphertext = encryptor.update(padded) + encryptor.finalize()
 
-        return base64.b64encode(ciphertext).decode('utf-8')
+        return base64.b64encode(IV + ciphertext).decode('utf-8')
 
     def decrypt_message(self, ciphertext, key):
 
-        # IV, ciphertext_text = ciphertext[:algorithms.AES.block_size//8], ciphertext[algorithms.AES.block_size//8:]
-        # cipher = Cipher(
-        #     algorithms.AES(key), 
-        #     modes.CBC(IV), 
-        #     default_backend()
-        # )
-        # decryptor = cipher.decryptor()
-        # unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
+        c = base64.b64decode(ciphertext.encode('utf-8'))
 
-        # pt = decryptor.update(ciphertext_text) + decryptor.finalize()
-        # plaintext = unpadder.update(pt) + unpadder.finalize()
+        IV, ciphertext_text = c[:algorithms.AES.block_size//8], c[algorithms.AES.block_size//8:]
+        cipher = Cipher(
+            algorithms.AES(key), 
+            modes.CBC(IV), 
+            default_backend()
+        )
+        decryptor = cipher.decryptor()
+        unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
 
-        ciphertext = base64.b64decode(ciphertext.encode('utf-8'))
-
-        plaintext = AESGCM(key).decrypt(ciphertext[:12], ciphertext[12:], b"")
+        pt = decryptor.update(ciphertext_text) + decryptor.finalize()
+        plaintext = unpadder.update(pt) + unpadder.finalize()
 
         return plaintext
 
@@ -150,70 +150,95 @@ class SymmetricCipher:
     #msg_result = decrypt_message(ciphertext, key)
     #print("Mensagem resultante:", msg_result)
 
-#### RSA for digital signature ####
 
-class RSA():
+#### HMAC: Hashed Message Authentication Code #### 
 
-    def __init__(self):
-        self.private_key = None
-        self.public_key = None
-        self.generateKeys()
+class HMAC():
 
-    def generateKeys(self):
-        self.private_key = rsa.generate_private_key(
-                            public_exponent=65537,
-                            key_size=2048,
-                            backend=default_backend()
-                            )
-        self.public_key = self.private_key.public_key()
+    def hmac_update(self, key, msg):
 
-        return self.private_key, self.public_key
+        if not isinstance(msg, bytes):
+            msg = pickle.dumps(msg)
 
-    def asym_encrypt(self, msg, key):
-        enc_msg = key.encrypt(
-                    msg,
-                    padding.OAEP(
-                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                        algorithm=hashes.SHA256(),
-                        label=None
-                    )
-        )
+        h = hmac.HMAC(b"key", hashes.SHA256(), backend=default_backend())
+        h.update(msg)
+        print(h)
 
-        return enc_msg
+        return h.finalize()
 
-    def asym_decrypt(self, msg, key):
-        dec_msg = key.decrypt(
-                    msg,
-                    padding.OAEP(
-                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                        algorithm=hashes.SHA256(),
-                        label=None
-                    )       
-        )
-        return dec_msg
+    def hmac_verify(self, key, hmac_msg, msg):
 
-    def signature(self, msg, key):
-        sign = key.sign(
-                    msg,
-                    padding.PSS(
-                        mgf=padding.MGF1(hashes.SHA256()),
-                        salt_length=padding.PSS.MAX_LENGTH
-                    ),
-                    hashes.SHA256()
-        )
+        if not isinstance(msg, bytes):
+            msg = pickle.dumps(msg)
 
-        return sign
+        h = hmac.HMAC(b"key", hashes.SHA256(), backend=default_backend())
+        h.update(msg)
+        return h.verify(hmac_msg)
 
-    def verifySignature(self, msg, key, sign):
-        try:
-            key.verify(
-                    sign,
-                    msg,
-                    padding.PSS(
-                        mgf=padding.MGF1(hashes.SHA256()),
-                        salt_length=padding.PSS.MAX_LENGTH
-                    ),
-                    hashes.SHA256()
-            )
-        except InvalidSignature:
-            return False
+#### RSA ####
+
+# class RSA():
+
+#     def __init__(self):
+#         self.private_key = None
+#         self.public_key = None
+#         self.generateKeys()
+
+#     def generateKeys(self):
+#         self.private_key = rsa.generate_private_key(
+#                             public_exponent=65537,
+#                             key_size=2048,
+#                             backend=default_backend()
+#                             )
+#         self.public_key = self.private_key.public_key()
+
+#         return self.private_key, self.public_key
+
+#     def asym_encrypt(self, msg, key):
+#         enc_msg = key.encrypt(
+#                     msg,
+#                     padding.OAEP(
+#                         mgf=padding.MGF1(algorithm=hashes.SHA256()),
+#                         algorithm=hashes.SHA256(),
+#                         label=None
+#                     )
+#         )
+
+#         return enc_msg
+
+#     def asym_decrypt(self, msg, key):
+#         dec_msg = key.decrypt(
+#                     msg,
+#                     padding.OAEP(
+#                         mgf=padding.MGF1(algorithm=hashes.SHA256()),
+#                         algorithm=hashes.SHA256(),
+#                         label=None
+#                     )       
+#         )
+#         return dec_msg
+
+#     def signature(self, msg, key):
+#         sign = key.sign(
+#                     msg,
+#                     padding.PSS(
+#                         mgf=padding.MGF1(hashes.SHA256()),
+#                         salt_length=padding.PSS.MAX_LENGTH
+#                     ),
+#                     hashes.SHA256()
+#         )
+
+#         return sign
+
+#     def verifySignature(self, msg, key, sign):
+#         try:
+#             key.verify(
+#                     sign,
+#                     msg,
+#                     padding.PSS(
+#                         mgf=padding.MGF1(hashes.SHA256()),
+#                         salt_length=padding.PSS.MAX_LENGTH
+#                     ),
+#                     hashes.SHA256()
+#             )
+#         except InvalidSignature:
+#             return False

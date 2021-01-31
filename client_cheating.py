@@ -10,11 +10,12 @@ import string
 from deck_utils import Player
 import random
 import time
-from security import DiffieHellman
+from security import DiffieHellman, SymmetricCipher, HMAC
 import socket
 import getpass
 import hashlib
 from Crypto.Cipher import AES
+from hashlib import sha256
 
 
 
@@ -71,6 +72,8 @@ class client():
             nickname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) #input(data["msg"])
             print("Your name is "+Colors.BBlue+nickname+Colors.Color_Off)
             self.dh = DiffieHellman(103079, 7)
+            self.symC = SymmetricCipher()
+            self.hmac = HMAC()
             public_key = self.dh.public_key
             print(public_key)
             msg = {"action": "req_login", "msg": nickname, "public_key": public_key}
@@ -95,7 +98,7 @@ class client():
             self.players = [[p, DiffieHellman(23, 5)] for p in data["players"] if p != self.player.name]
             self.dh_idx = 0
             for i in self.players:
-                print("name: "+i[0]+" session key: "+str(base64.b64decode(i[1].public_key.encode('utf-8'))))
+                print("name: "+i[0]+" session key: "+str(base64.b64decode(i[1].public_key)))
             if self.player.host:
                 print("host")
                 msg = {"action": "player_sessions"}
@@ -117,27 +120,37 @@ class client():
             if self.players[self.dh_idx][1].shared_key == None:
                 print("send to: "+str(self.players[self.dh_idx][0]))
                 print("key status: "+str(self.players[self.dh_idx][1].shared_key))
-                print("my public: "+self.players[self.dh_idx][1].public_key)
+                print("my public: "+str(self.players[self.dh_idx][1].public_key))
                 public_key = self.players[self.dh_idx][1].public_key
-                msg = {"action": "send_dh", "key": public_key, "send_to": self.players[self.dh_idx][0], "from": self.player.name}
+                key = self.symC.encrypt_message(public_key, self.dh.shared_key)
+                key_sign = self.hmac_sign(key, self.dh.shared_key)
+                msg = {"action": "send_dh", "key": key, "send_to": self.players[self.dh_idx][0], "from": self.player.name, "sign": key_sign}
                 self.sock.send(pickle.dumps(msg))
             else:
                 msg = {"action": "sent"}
                 self.sock.send(pickle.dumps(msg))
         elif action == "get_key":
             print("me: "+self.player.name)
-            print("get key from: " + data["from"] + " key: "+ str(data["key"]))
+            sk = self.dh.shared_key
+            verify = self.verify_sign(sk, data["sign"], data["key"])
+            key = self.symC.decrypt_message(data["key"], self.dh.shared_key)
+            print("get key from: " + data["from"] + " key: "+ str(key))
             for p in self.players:
                 if p[0] == data["from"]:
                     print("my public: ", p[1].public_key)
-                    p[1].getSharedKey(data["key"])
+                    p[1].getSharedKey(key)
                     print("SHARED KEY: " + str(p[1].shared_key))
-                    msg = {"action": "done", "from": self.player.name, "key": p[1].public_key, "send_to": data["from"]}
+                    key = self.symC.encrypt_message(p[1].public_key, self.dh.shared_key)
+                    k_sign = self.hmac_sign(key, self.dh.shared_key)
+                    msg = {"action": "done", "from": self.player.name, "key": key, "send_to": data["from"], "sign": k_sign}
                     self.sock.send(pickle.dumps(msg))
         elif action =="dh_response":
+            sk = self.dh.shared_key
+            verify = self.verify_sign(sk, data["sign"], data["key"])
+            key = self.symC.decrypt_message(data["key"], self.dh.shared_key)
             for p in self.players:
                 if p[0] == data["from"]:
-                    p[1].getSharedKey(data["key"])
+                    p[1].getSharedKey(key)
                     print("SHAAARED KEY from " + data["from"] + " " + str(p[1].shared_key))
             self.dh_idx += 1
             if None not in [p[1].shared_key for p in self.players]:  
@@ -146,7 +159,9 @@ class client():
             else:
                 for p in self.players:
                     if p[1].shared_key == None:
-                        msg = {"action": "send_dh", "key": p[1].public_key, "send_to": p[0], "from": self.player.name}
+                        key = self.symC.encrypt_message(p[1].public_key, self.dh.shared_key)
+                        key_sign = self.hmac_sign(key, self.dh.shared_key)
+                        msg = {"action": "send_dh", "key": key, "send_to": p[0], "from": self.player.name, "sign": key_sign}
                         self.sock.send(pickle.dumps(msg))
 
         elif action == "host_start":
@@ -155,9 +170,15 @@ class client():
             self.sock.send(pickle.dumps(msg))
         #---------------added----------------------------
         elif data["action"] == "scrumble":
-            scrumble_deck = data["deck"]
-            self.player.cipher_tiles(scrumble_deck)
-            msg = {"action": "scrumbled", "deck": self.player.ciphered_deck}
+            ## verify signature
+            verify = self.verify_sign(self.dh.shared_key, data["sign"], data["deck"])
+            scrumble_deck = self.symC.decrypt_message(data["deck"], self.dh.shared_key)
+            #scrumble_deck = data["deck"]
+            #print("decrypt", str(scrumble_deck))
+            self.player.cipher_tiles(pickle.loads(scrumble_deck))
+            deck = self.symC.encrypt_message(pickle.dumps(self.player.ciphered_deck), self.dh.shared_key)
+            sign = self.hmac_sign(deck, self.dh.shared_key)
+            msg = {"action": "scrumbled", "deck": deck, "sign": sign}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "select":
             tiles = self.player.pick_tile(data["deck"])
@@ -303,5 +324,16 @@ class client():
             print("Result:" + str(data["agreement_result"]))
             # if str(data["agreement_result"]) == "Aproved":
             #     saveScore(self.player.score)
+
+    def hmac_sign(self, msg, key):
+        new_key = sha256(key).hexdigest()
+        print(new_key)
+        data = self.hmac.hmac_update(new_key, msg)
+
+        return data
+
+    def verify_sign(self, key, data, msg):
+        new_key = sha256(key).hexdigest()
+        self.hmac.hmac_verify(new_key, data, msg)
 
 a = client('localhost', 50000)

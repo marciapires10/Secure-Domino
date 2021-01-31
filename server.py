@@ -13,11 +13,12 @@ from game import Game
 import signal
 import Colors
 import time
-from security import DiffieHellman
+from security import DiffieHellman, SymmetricCipher, HMAC
 import string
 import random
 
 from Crypto.Cipher import AES
+from hashlib import sha256
 
 # Main socket code from https://docs.python.org/3/howto/sockets.html
 # Select with sockets from https://steelkiwi.com/blog/working-tcp-sockets/
@@ -58,6 +59,8 @@ class TableManager:
         self.pickup_keys = []
         #---------------------------------
         self.a = []
+        self.symC = SymmetricCipher()
+        self.hmac = HMAC()
 
         while self.inputs:
             readable, writeable, exceptional = select.select(self.inputs, self.outputs, self.inputs)
@@ -230,18 +233,30 @@ class TableManager:
             if action == "send_dh":
                 print("from: "+data["from"])
                 print("to: "+data["send_to"])
-                for p in self.game.players:
-                    if p.name == data["send_to"]:
-                        msg = {"action": "get_key", "from": data["from"], "key": data["key"]}
-                        self.send_to(msg, p)
+                sk = [p[1].shared_key for p in self.a if p[0].name == data["from"]][0]
+                verify = self.verify_sign(sk, data["sign"], data["key"])
+                key = self.symC.decrypt_message(data["key"], sk)
+                for pl in self.game.players:
+                    if pl.name == data["send_to"]:
+                        print([[p[0].name, p[1].shared_key] for p in self.a])
+                        sk = [p[1].shared_key for p in self.a if pl.name == p[0].name][0]
+                        key = self.symC.encrypt_message(key, sk)
+                        key_sign = self.hmac_sign(key, sk)
+                        msg = {"action": "get_key", "from": data["from"], "key": key, "sign": key_sign}
+                        self.send_to(msg, pl)
                         return
             if action == "done":
+                sk = [p[1].shared_key for p in self.a if p[0].name == data["from"]][0]
+                verify = self.verify_sign(sk, data["sign"], data["key"])
+                key = self.symC.decrypt_message(data["key"], sk)
                 print("done from: "+data["from"])
-                msg = {"action": "dh_response", "from": data["from"], "key": data["key"]}
-                for p in self.game.players:
-                    if p.name == data["send_to"]:
-                        player = p
-                        self.send_to(msg, player)
+                for pl in self.game.players:
+                    if pl.name == data["send_to"]:
+                        sk = [p[1].shared_key for p in self.a if pl.name == p[0].name][0]
+                        key = self.symC.encrypt_message(key, sk)
+                        key_sign = self.hmac_sign(key, sk)
+                        msg = {"action": "dh_response", "from": data["from"], "key": key, "sign": key_sign}
+                        self.send_to(msg, pl)
                         return
             if action == "sent":
                 print(self.game.player_index)
@@ -261,15 +276,26 @@ class TableManager:
                 # self.send_all(msg,sock)
                 player = self.game.currentPlayer()
                 self.d_players.append(player)
-                msg = {"action": "scrumble", "deck": self.game.deck.ps_deck}
+                # for p in self.a:
+                #     if p[0] == player:
+                #         sk = p[1].shared_key
+                
+                sk = [p[1].shared_key for p in self.a if player.name == p[0].name][0]
+                deck = self.symC.encrypt_message(pickle.dumps(self.game.deck.ps_deck), sk)
+                deck_sign = self.hmac_sign(deck, sk)
+                msg = {"action": "scrumble", "deck": deck, "sign": deck_sign}
                 self.send_to(msg, player)
                 return
             #----------------------------------------------------------------
             #------------------------added-------------------------------
             if action == "scrumbled":
+                pl = [p.name for p in self.game.players if p.socket == sock][0]
+                sk = [p[1].shared_key for p in self.a if p[0].name == pl][0]
+                verify = self.verify_sign(sk, data["sign"], data["deck"])
+                deck = self.symC.decrypt_message(data["deck"], sk)
                 if self.game.player_index == self.game.max_players-1:
-                    self.game.tiles = data["deck"]
-                    self.game.s_deck = data["deck"]
+                    self.game.tiles = pickle.loads(deck)
+                    self.game.s_deck = pickle.loads(deck)
                     player = self.game.nextPlayer()
                     msg = {"action": "select", "deck":self.game.s_deck}
                     self.send_to(msg, player)
@@ -278,21 +304,16 @@ class TableManager:
                     player = self.game.nextPlayer()
                     self.d_players.append(player)
                     self.d_players_idx += 1
-                    msg = {"action": "scrumble", "deck": data["deck"]}
+                    sk = [p[1].shared_key for p in self.a if player.name == p[0].name][0]
+                    deck = self.symC.encrypt_message(deck, sk)
+                    deck_sign = self.hmac_sign(deck, sk)
+                    msg = {"action": "scrumble", "deck": deck, "sign": deck_sign}
                     self.send_to(msg, player)
                     return
             if action == "selected":
                 if len(self.game.s_deck) != len(data["deck"]):
                     self.game.players[self.game.player_index].n_pieces += 1
                 self.game.s_deck = data["deck"]
-                # hands_full = True
-                # for p in self.game.players:
-                #     print("player: {} hand pieces: {}".format(p.name, p.n_pieces))
-                #     if p.n_pieces < p.pieces_per_player:
-                #         hands_full = False
-                # if hands_full:
-                #     print("stock: "+str(len(self.game.deck.deck)-(self.game.deck.pieces_per_player*self.game.nplayers)))
-                #     print("r stock: "+str(len(self.game.s_deck)))
                 if len(self.game.s_deck) == self.game.deck_len-(self.game.deck.pieces_per_player*self.game.nplayers):
                     msg = {"action": "commitment"}
                     player = self.game.currentPlayer()
@@ -613,7 +634,19 @@ class TableManager:
                 break
         if not (str(deck_idx) in [p[0] for p in self.game.deck.idx]):
             return True
+    
+    # Sign messages
+    def hmac_sign(self, msg, key):
+        new_key = sha256(key).hexdigest()
+        print(new_key)
+        data = self.hmac.hmac_update(new_key, msg)
 
+        return data
+        
+    # Verify signature
+    def verify_sign(self, key, data, msg):
+        new_key = sha256(key).hexdigest()
+        self.hmac.hmac_verify(new_key, data, msg)
     
 try:
     NUM_PLAYERS = int(sys.argv[1])
