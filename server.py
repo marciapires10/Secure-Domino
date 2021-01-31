@@ -55,6 +55,7 @@ class TableManager:
         self.authenticated = 0
         self.dicSerialNumber = {}
         self.challenge = ""
+        self.pickup_keys = []
         #---------------------------------
         self.a = []
 
@@ -383,6 +384,7 @@ class TableManager:
                 piece = self.game.deck.deck2[int(data["idx"])]
                 msg = {"action": "de-anonymized", "piece": piece}
                 player = self.game.currentPlayer()
+                self.pickup_keys.append([player.name, piece])
                 player.n_pieces += 1
                 self.send_to(msg, player)
                 return
@@ -451,7 +453,7 @@ class TableManager:
                 elif action == "play_piece":
                     score = str(data["score"])
                     self.game.currentPlayer().score = score
-                    next_p = self.game.nextPlayer()
+                    
                     if data["piece"]is not None:
                         player.nopiece = False
                         player.n_pieces += 1
@@ -459,14 +461,20 @@ class TableManager:
                         ## Check if piece is not on deck
                         try:
                             if self.check_piece_in_deck(data["piece"]):
-                                print(str(self.game.currentPlayer().name) + " is cheating.")
+                                print(str(player.name) + " is cheating. Rolling back play")
+                                msg = {"action": "rcv_game_propreties"}
+                                msg.update(self.game.toJson())
+                                next_action = {"next_action":"play"}
+                                msg.update(next_action)
+                                self.send_all(msg, sock)
+                                return pickle.dumps(msg)
                             else:
                                 print(str(player.name) + " is not cheating.")
                         except Exception as e:
                             print(e)
                             print("Deck problems")
 
-
+                        self.game.nextPlayer()
                         if data["edge"]==0:
                             self.game.deck.in_table.insert(0,data["piece"])
                         else:
@@ -511,6 +519,64 @@ class TableManager:
 
                     self.send_all(msg, sock)
                     return pickle.dumps(msg)
+                elif action == "report_cheating":
+                    print(str(data["player_cheating"]) + " was caught cheating.")
+                    msg = {"action": "ask_value", "player": data["player_cheating"], "piece":data["piece"]}
+                    self.send_all(msg, sock)
+                    return pickle.dumps(msg)
+            elif action == "send_values":
+                    _name = data["player_cheating"]
+                    _piece = data["piece"]
+                    _hand = data["hand"]
+                    _hand2 = data["hand2"]
+                    _start_hand = data["start_hand"]
+                    _r1 = data["r1"]
+                    _r2 = data["r2"]
+                    _bitcommit = data["bitcommit"]
+
+
+                    print("Reviewing this accusation.")
+
+                    digest = hashes.Hash(hashes.SHA256(), default_backend())
+                    digest.update(str(_start_hand).encode('utf-8'))
+                    digest.update(_r1)
+                    digest.update(_r2)
+                    _bitcommit2 = digest.finalize()
+                    
+                    _hand_decoded = self.game.deck.decipher_all_return(_hand2, self.p_key_map)
+                    idx_decode = [p[0] for p in _hand_decoded]
+                    found = False
+                    if str(_bitcommit2) == str(_bitcommit):
+                        print("The starting hand was not adultered.")
+                        for id in idx_decode:
+                            id = int(id)
+                            p2 = str(_piece).split(":")[1] + ":" + str(_piece).split(":")[0]
+                            if str(self.game.deck.deck2[id]) == str(_piece) or str(self.game.deck.deck2[id]) == str(p2):
+                                found = True
+                                break
+
+                    if not found:
+                        print("The player was cheating.")
+                        msg = {"action": "end_game", "winner": Colors.BYellow+"TIE"+Colors.Color_Off}
+                        self.send_all(msg, sock)
+                        return pickle.dumps(msg)
+
+                    found2 = False
+                    for p in self.pickup_keys:
+                        if p[1] == data["piece"]:
+                            print(p[0] + " picked up piece " + p[1])
+                            if p[0] == _name:
+                                found2 = True
+                                break
+
+                    if not found2:
+                        print("The player was cheating.")
+                    else:
+                        print("The player was not cheating")
+
+                    msg = {"action": "end_game", "winner": Colors.BYellow+"TIE"+Colors.Color_Off}
+                    self.send_all(msg, sock)
+                    return pickle.dumps(msg)
             else:
                 msg = {"action": "wait","msg":Colors.BRed+"Not Your Turn"+Colors.Color_Off}
             return pickle.dumps(msg)
@@ -532,14 +598,16 @@ class TableManager:
     
     # Cheating mechanism
     def check_piece_in_deck(self, piece):
-        print([p[0] for p in self.game.deck.idx])
-        print([[p,self.game.deck.deck2[p]] for p in range(len(self.game.deck.idx))])
+        # print("TABLE -> " + str(self.game.deck.in_table))
+        # print([p[0] for p in self.game.deck.idx])
+        # print([[p,self.game.deck.deck2[p]] for p in range(len(self.game.deck.idx))])
         piece2 = piece.split(":")[1]+":"+piece.split(":")[0]
         print("Play piece: " + str(piece))
         deck_idx = None
         for i in range(len(self.game.deck.deck2)):
-            print(self.game.deck.deck2[i])
             if str(self.game.deck.deck2[i]) == str(piece) or str(self.game.deck.deck2[i]) == str(piece2):
+                if str(piece) in self.game.deck.in_table or str(piece2) in self.game.deck.in_table:
+                    return True
                 print("Found: " + str(i))
                 deck_idx = i
                 break

@@ -16,6 +16,7 @@ class Player:
         self.socket = socket
         self.hand = []
         self.all_hand = []
+        self.start_hand = []
         self.num_pieces = 0
         self.score = 0
         self.host=False
@@ -72,7 +73,7 @@ class Player:
         print("Winner ",self.num_pieces == 0)
         return self.num_pieces == 0
 
-    def play(self):
+    def play(self, is_cheating):
         res = {}
         self.score += 1
         if self.in_table == []:
@@ -114,9 +115,11 @@ class Player:
                             edge = 1
             #if there is a piece to play, remove the piece from the hand and check if the orientation is the correct
             if edge is not None:
-                piece = self.hand.pop(index)
-                # Try Cheat
-                # piece = self.cheat()
+                if not is_cheating:
+                    piece = self.hand.pop(index)
+                else:
+                    # Try Cheat
+                    piece = self.cheat()
                 if flip:
                     piece = piece.split(":")[1]+":"+piece.split(":")[0]
                     #piece.flip()
@@ -291,7 +294,7 @@ class Player:
         for i in range(len(array)):
             if array[i][0] in self.index_map.keys():
                 tile = self.rsa_decrypt(array[i][1], self.index_map[array[i][0]])
-                self.hand.append(tile.decode('utf-8'))
+                self.hand.append(tile.decode('utf-8'))               
         print(self.hand)
     
     def rsa_decrypt(self, ciphertext, privkey):
@@ -311,12 +314,16 @@ class Player:
         for piece in pieces.split(","):
             piece = piece.replace(" ", "").split("-")
             pieces_slots.append(Piece(piece[0], piece[1]))
-        pieces_to_play =  [p for p in pieces_slots if str(p) not in self.hand]
+        pieces_to_play =  [p for p in pieces_slots if p not in self.all_hand and Piece(str(p).split(":")[1],str(p).split(":")[0]) not in self.all_hand]
         random.shuffle(pieces_to_play)
         self.hand.pop()
         piece = str(pieces_to_play.pop())
 
         return piece
+
+    def get_otherside_piece(self, p):
+        piece = p.split(":")[1] + ":" + p.split(":")[0]
+
 class Piece:
     values = []
 
@@ -400,6 +407,29 @@ class Deck:
                 aux = []
         for i in t:
             self.idx.append([tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))[-1], None])
+
+    def decipher_all_return(self, p_tiles, k_map_arr):
+        hand_decoded = []
+        t = p_tiles
+        aux = []
+        last = len(k_map_arr)
+        count = 0
+        for k_map in k_map_arr:
+            count += 1
+            for ciphertext in t:
+                if ciphertext in k_map:
+                    plaintext = self.decipher(ciphertext, k_map)
+                    if count == last:
+                        aux.append(plaintext)
+                    else:
+                        aux.append(base64.b64encode(plaintext))
+            if aux != []:
+                t = aux
+                aux = []
+        for i in t:
+            hand_decoded.append([tuple(map(str, i.decode("utf-8")[1:-1].split(', ')))[-1], None])
+        return hand_decoded
+        
         
     def decipher(self, ciphertext, k_map):
         c = base64.b64decode(ciphertext)

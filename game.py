@@ -49,6 +49,17 @@ class Game:
                 return True
         return False
 
+    def getPlayer(self,name):
+        for player in self.players:
+            if player.start_hand != []:
+                print("Mão não vazia")
+            # if name == player.name:
+            #     print("HAND: " + str(player.hand))
+            #     print("HAND2: " + str(player.hand2))
+            #     input("Inside player")
+            #     return player
+        return False
+
     def isFull(self):
         return self.nplayers == self.max_players    
 

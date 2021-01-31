@@ -188,7 +188,7 @@ class client():
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "piece_key":
             k_map = self.player.decipher_tiles([data["piece"]], data["key_map"])
-            print("Picked " + str(data["piece"]))
+            print("Picked " + str(k_map))
             msg = {"action": "piece_key", "key_map": k_map, "rec": int(data["rec"])+1, "piece": data["piece"]}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "decipher_piece":
@@ -252,7 +252,7 @@ class client():
                         self.sock.send(pickle.dumps(msg))
                 if data["next_action"]=="play":
                     #input(Colors.BGreen+"Press ENter \n\n"+Colors.Color_Off)
-                    msg = self.player.play(False)
+                    msg = self.player.play(True)
                     self.sock.send(pickle.dumps(msg))
         elif action == "ask_value":
             print("Asking...")
@@ -269,7 +269,7 @@ class client():
                 return
             else:
                 return
-
+                
         elif action == "end_game":
             winner = data["winner"]
             if data["winner"] == self.player.name:
