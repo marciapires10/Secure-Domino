@@ -209,7 +209,7 @@ class TableManager:
                                 players_name = [p.name for p in self.game.players]
                                 print(players_name)
                                 print(Colors.BIPurple+"The game is Full"+Colors.Color_Off)
-                                msg = {"action": "waiting_for_host", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off, "players": players_name}
+                                msg = {"action": "start_sessions", "players": players_name}
                                 #------------------------------------------
                                 self.send_all(msg,sock)
                             return pickle.dumps(msg)
@@ -220,25 +220,33 @@ class TableManager:
 
             #-------------------altered-------------------------------------
             if action == "player_sessions":
-                player = self.game.currentPlayer()
-                msg = {"action": "share_key"}
-                self.send_to(msg, player)
-                return 
+                for p in self.game.players:
+                    if p.socket == sock:
+                        print(p.name)
+                        msg = {"action": "share_key"}
+                        self.send_to(msg, p)
+                        return 
             if action == "send_dh":
+                print("from: "+data["from"])
+                print("to: "+data["send_to"])
                 for p in self.game.players:
                     if p.name == data["send_to"]:
                         msg = {"action": "get_key", "from": data["from"], "key": data["key"]}
                         self.send_to(msg, p)
                         return
             if action == "done":
+                print("done from: "+data["from"])
                 msg = {"action": "dh_response", "from": data["from"], "key": data["key"]}
-                player = self.game.currentPlayer()
-                self.send_to(msg, player)
-                return
-
+                for p in self.game.players:
+                    if p.name == data["send_to"]:
+                        player = p
+                        self.send_to(msg, player)
+                        return
             if action == "sent":
+                print(self.game.player_index)
                 if self.game.player_index == self.game.nplayers-1:
                     player = self.game.nextPlayer()
+                    print(self.game.player_index)
                     msg = {"action": "host_start", "msg": Colors.BRed+"Waiting for host to start the game"+Colors.Color_Off}
                     self.send_to(msg, player)
                     return
@@ -451,7 +459,7 @@ class TableManager:
                         ## Check if piece is not on deck
                         try:
                             if self.check_piece_in_deck(data["piece"]):
-                                print(str(player.name) + " is cheating.")
+                                print(str(self.game.currentPlayer().name) + " is cheating.")
                             else:
                                 print(str(player.name) + " is not cheating.")
                         except Exception as e:

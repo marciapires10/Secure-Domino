@@ -33,10 +33,10 @@ class DiffieHellman:
         self.public_key = base64.b64encode(self.private_key.public_key().public_bytes(Encoding.DER, PublicFormat.SubjectPublicKeyInfo)).decode('utf-8')
 
     def getSharedKey(self, peer_public_key):
-        print(peer_public_key)
         pub = serialization.load_der_public_key(base64.b64decode(peer_public_key.encode('utf-8')), backend=default_backend())
+        print("public key: "+str(pub))
         shared_secret = self.private_key.exchange(pub)
-
+        print("shared secret: "+str(shared_secret))
 
         # Key derivation
         self.shared_key = HKDF(algorithm=hashes.SHA256(),

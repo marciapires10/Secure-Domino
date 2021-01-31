@@ -34,7 +34,7 @@ class client():
         self.receiveData()
         self.players = [] #list of players
         self.dh = None
-        self.dh_idx = 0
+        self.dh_idx = None
 
     def receiveData(self):
         while True:
@@ -89,10 +89,22 @@ class client():
             print(self.dh.shared_key)
             print(data["msg"])
             print("There are "+str(data["nplayers"])+"\\"+str(data["game_players"]))
-
+        #---------------------------added-----------------------------
+        elif action == "start_sessions":
+            print("start")
+            self.players = [[p, DiffieHellman(23, 5)] for p in data["players"] if p != self.player.name]
+            self.dh_idx = 0
+            for i in self.players:
+                print("name: "+i[0]+" session key: "+str(base64.b64decode(i[1].public_key.encode('utf-8'))))
+            if self.player.host:
+                print("host")
+                msg = {"action": "player_sessions"}
+                print(msg)
+                self.sock.send(pickle.dumps(msg))
         elif action == "waiting_for_host":
             #--------------------added--------------------------
-            self.players = [[p,DiffieHellman(23, 5)] for p in data["players"] if p != self.player.name]
+            self.players = [[p, DiffieHellman(23, 5)] for p in data["players"] if p != self.player.name]
+            self.dh_idx = 0
             print(self.players)
             #---------------------------------------------------
             if self.player.host:
@@ -101,25 +113,33 @@ class client():
                 print("Sent ", msg)
 
         elif action == "share_key":
-            for p in self.players:
-                if p[1].shared_key == None:
-                    msg = {"action": "send_dh", "key": p[1].public_key, "send_to": p[0], "from": self.player.name}
-                    self.sock.send(pickle.dumps(msg))
-        elif action == "get_key":
-            for p in self.players:
-                print("p[0]",p[0])
-                print("data[from]", data["from"])
-                if p[0] == data["from"]:
-                    print("aqui a public key", p[1].public_key)
-                    p[1].getSharedKey(data["key"])
-                    print("SHAAARED KEY from " + data["from"] + " " + str(p[1].shared_key))
-                msg = {"action": "done", "from": self.player.name, "key": p[1].public_key}
+            print("me: "+self.player.name)
+            if self.players[self.dh_idx][1].shared_key == None:
+                print("send to: "+str(self.players[self.dh_idx][0]))
+                print("key status: "+str(self.players[self.dh_idx][1].shared_key))
+                print("my public: "+self.players[self.dh_idx][1].public_key)
+                public_key = self.players[self.dh_idx][1].public_key
+                msg = {"action": "send_dh", "key": public_key, "send_to": self.players[self.dh_idx][0], "from": self.player.name}
                 self.sock.send(pickle.dumps(msg))
+            else:
+                msg = {"action": "sent"}
+                self.sock.send(pickle.dumps(msg))
+        elif action == "get_key":
+            print("me: "+self.player.name)
+            print("get key from: " + data["from"] + " key: "+ str(data["key"]))
+            for p in self.players:
+                if p[0] == data["from"]:
+                    print("my public: ", p[1].public_key)
+                    p[1].getSharedKey(data["key"])
+                    print("SHARED KEY: " + str(p[1].shared_key))
+                    msg = {"action": "done", "from": self.player.name, "key": p[1].public_key, "send_to": data["from"]}
+                    self.sock.send(pickle.dumps(msg))
         elif action =="dh_response":
             for p in self.players:
                 if p[0] == data["from"]:
                     p[1].getSharedKey(data["key"])
                     print("SHAAARED KEY from " + data["from"] + " " + str(p[1].shared_key))
+            self.dh_idx += 1
             if None not in [p[1].shared_key for p in self.players]:  
                 msg = {"action": "sent"}
                 self.sock.send(pickle.dumps(msg))
