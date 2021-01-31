@@ -33,9 +33,10 @@ def authSerialNumber():
         print("Authentication succeeded")
         SN = encryptSerialNumber(serialNumber)
         return SN
-    except :
+    except Exception as e:
+        print(e)
         print("You didn\'t have the card inserted!")
-        sys.exit(0)
+        # sys.exit(0)
 
 
 def encryptSerialNumber(serialNumber):

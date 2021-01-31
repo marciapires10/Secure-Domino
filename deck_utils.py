@@ -115,6 +115,8 @@ class Player:
             #if there is a piece to play, remove the piece from the hand and check if the orientation is the correct
             if edge is not None:
                 piece = self.hand.pop(index)
+                # Try Cheat
+                # piece = self.cheat()
                 if flip:
                     piece = piece.split(":")[1]+":"+piece.split(":")[0]
                     #piece.flip()
@@ -301,6 +303,20 @@ class Player:
         )
         return plaintext
 
+    def cheat(self):
+        pieces_slots = []
+        with open('pieces', 'r') as file:
+            file.seek(0)
+            pieces = file.read()
+        for piece in pieces.split(","):
+            piece = piece.replace(" ", "").split("-")
+            pieces_slots.append(Piece(piece[0], piece[1]))
+        pieces_to_play =  [p for p in pieces_slots if str(p) not in self.hand]
+        random.shuffle(pieces_to_play)
+        self.hand.pop()
+        piece = str(pieces_to_play.pop())
+
+        return piece
 class Piece:
     values = []
 

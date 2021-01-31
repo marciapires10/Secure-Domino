@@ -99,8 +99,7 @@ class client():
                 msg = {"action": "start_game"}
                 self.sock.send(pickle.dumps(msg))
                 print("Sent ", msg)
-            else:
-                print(data["msg"])
+
         elif action == "share_key":
             for p in self.players:
                 if p[1].shared_key == None:
@@ -200,10 +199,12 @@ class client():
             # print("Current player ->",player_name)
             # print("next Action ->", data["next_action"])
             if "previous_player" in data.keys():
+                print("Previous Player")
+                print(data["previous_player"])
                 if data["previous_player"] == self.player.name:
                     print("It was my turn.")
                 elif "piece_played" in data.keys():
-                    for p in self.player.start_hand:
+                    for p in self.player.all_hand:
                         print(p)
                         if str(data["piece_played"]) == str(p):
                             print(str(data["previous_player"]) + " is cheating.")

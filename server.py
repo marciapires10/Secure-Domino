@@ -454,7 +454,8 @@ class TableManager:
                                 print(str(player.name) + " is cheating.")
                             else:
                                 print(str(player.name) + " is not cheating.")
-                        except:
+                        except Exception as e:
+                            print(e)
                             print("Deck problems")
 
 
@@ -467,6 +468,7 @@ class TableManager:
                     print("player "+player.name+" played "+str(data["piece"]))
                     print("in table -> " + ' '.join(map(str, self.game.deck.in_table)) + "\n")
                     print("deck -> " + ' '.join(map(str, self.game.deck.deck)) + "\n")
+                    print(data["win"])
                     if data["win"]:
                         if player.checkifWin():
                             print(Colors.BGreen+" WINNER "+player.name+Colors.Color_Off)
@@ -474,11 +476,11 @@ class TableManager:
                             players_score = dict()
                             for p in self.game.players:
                                 players_score[p.name] = p.score
-                            msg = {"action": "end_game","winner":player.name, "players": players_score}
+                            msg = {"action": "end_game","winner":player.name, "players": players_score, "piece_played": data["piece"], "previous_player": player.name}
                             self.dicSerialNumber["win"] = player.name
                             self.dicSerialNumber["points"] = players_score
                     else:
-                        msg = {"action": "rcv_game_propreties"}
+                        msg = {"action": "rcv_game_propreties", "piece_played": data["piece"], "previous_player": player.name}
                     msg.update(self.game.toJson())
                     self.send_all(msg,sock)
                 #no pieces to pick
@@ -528,12 +530,11 @@ class TableManager:
         print("Play piece: " + str(piece))
         deck_idx = None
         for i in range(len(self.game.deck.deck2)):
+            print(self.game.deck.deck2[i])
             if str(self.game.deck.deck2[i]) == str(piece) or str(self.game.deck.deck2[i]) == str(piece2):
                 print("Found: " + str(i))
                 deck_idx = i
                 break
-        not_in_hand = True
-        print(deck_idx)
         if not (str(deck_idx) in [p[0] for p in self.game.deck.idx]):
             return True
 
