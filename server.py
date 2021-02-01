@@ -435,8 +435,7 @@ class TableManager:
                         self.send_all(msg,sock)
                         try:
                             serialNumber = self.dicSerialNumber[self.dicSerialNumber["win"]]
-                            points = self.dicSerialNumber["points"]
-                            writeCSV(serialNumber,int(points[self.dicSerialNumber["win"]]))
+                            writeCSV(serialNumber,5)
                         except:
                             print("Nobody win points because it's a draw")
                         
@@ -457,8 +456,6 @@ class TableManager:
                     return
 
                 elif action == "play_piece":
-                    score = str(data["score"])
-                    self.game.currentPlayer().score = score
                     
                     if data["piece"]is not None:
                         player.nopiece = False
@@ -493,28 +490,18 @@ class TableManager:
                     if data["win"]:
                         if player.checkifWin():
                             print(Colors.BGreen+" WINNER "+player.name+Colors.Color_Off)
-                            print(Colors.BGreen+" SCORE: "+ score +Colors.Color_Off)
-                            players_score = dict()
-                            for p in self.game.players:
-                                players_score[p.name] = p.score
-                            msg = {"action": "end_game","winner":player.name, "players": players_score, "piece_played": data["piece"], "previous_player": player.name}
+                            msg = {"action": "end_game","winner":player.name, "piece_played": data["piece"], "previous_player": player.name}
                             self.dicSerialNumber["win"] = player.name
-                            self.dicSerialNumber["points"] = players_score
                     else:
                         msg = {"action": "rcv_game_propreties", "piece_played": data["piece"], "previous_player": player.name}
                     msg.update(self.game.toJson())
                     self.send_all(msg,sock)
                 #no pieces to pick
                 elif action == "pass_play":
-                    score = str(data["score"])
-                    self.game.currentPlayer().score = score
                     self.game.nextPlayer()
                     #If the player passed the previous move
                     if player.nopiece:
-                        players_score = dict()
-                        for p in self.game.players:
-                            players_score[p.name] = p.score
-                        msg = {"action": "end_game", "winner": Colors.BYellow+"TIE"+Colors.Color_Off, "players": players_score}
+                        msg = {"action": "end_game", "winner": Colors.BYellow+"TIE"+Colors.Color_Off}
                     #Update the variable nopiece so that the server can know if the player has passed the previous move
                     else:
                         print("No piece")

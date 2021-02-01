@@ -18,7 +18,6 @@ class Player:
         self.all_hand = []
         self.start_hand = []
         self.num_pieces = 0
-        self.score = 0
         self.host=False
         self.pieces_per_player=pieces_per_player
         self.ready_to_play = False
@@ -43,7 +42,7 @@ class Player:
         return str(self.toJson())
 
     def toJson(self):
-        return {"name": self.name, "hand": self.hand, "score": self.score}
+        return {"name": self.name, "hand": self.hand}
 
     def isHost(self):
         return self.host
@@ -75,12 +74,11 @@ class Player:
 
     def play(self, is_cheating):
         res = {}
-        self.score += 1
         if self.in_table == []:
             print("Empty table")
             piece = self.hand.pop()
             self.updatePieces(-1)
-            res = {"action": "play_piece","piece":piece,"edge":0,"win":False, "score": self.score}
+            res = {"action": "play_piece","piece":piece,"edge":0,"win":False}
         else:
             edges = self.in_table[0].split(":")[0], self.in_table[len(self.in_table) - 1].split(":")[1]
             #edges = self.in_table[0].values[0].value, self.in_table[len(self.in_table) - 1].values[1].value
@@ -123,13 +121,13 @@ class Player:
                     piece = piece.split(":")[1]+":"+piece.split(":")[0]
                     #piece.flip()
                 self.updatePieces(-1)
-                res = {"action": "play_piece", "piece": piece,"edge":edge,"win":self.checkifWin(), "score": self.score}
+                res = {"action": "play_piece", "piece": piece,"edge":edge,"win":self.checkifWin()}
             # if there is no piece to play try to pick a piece, if there is no piece to pick pass
             else:
                 if len(self.deck)>0:
                     res = self.pickPiece()
                 else:
-                    res = {"action": "pass_play", "piece": None, "edge": edge,"win":self.checkifWin(), "score": self.score}
+                    res = {"action": "pass_play", "piece": None, "edge": edge,"win":self.checkifWin()}
         return res
 
     #--------------------added----------------------------------------

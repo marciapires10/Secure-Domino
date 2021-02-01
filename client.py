@@ -25,7 +25,7 @@ class client():
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.connect((host, port))
-        first_msg = {"action": "authentication_3"}  #Mudar para authentication na Versão Final!
+        first_msg = {"action": "authentication"}  #Mudar para authentication na Versão Final!
         self.sock.send(pickle.dumps(first_msg))
         self.player = None
         #-------added-------------
@@ -67,10 +67,10 @@ class client():
                 sys.exit(0)
         
         if action == "login":
-            # if data["authentication"] == False:       #Voltar a descomentar na Versão final!!
-            #     self.sock.close()
-            #     print("Cliente não Autenticado")
-            #     sys.exit(0)
+            if data["authentication"] == False:       #Voltar a descomentar na Versão final!!
+                self.sock.close()
+                print("Cliente não Autenticado")
+                sys.exit(0)
             nickname = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) #input(data["msg"])
             print("Your name is "+Colors.BBlue+nickname+Colors.Color_Off)
             self.dh = DiffieHellman(103079, 7)

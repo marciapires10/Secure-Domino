@@ -35,11 +35,11 @@ def authSerialNumber():
     except Exception as e:
         print(e)
         print("You didn\'t have the card inserted!")
-        #sys.exit(0)
+        sys.exit(0)
 
 
 def encryptSerialNumber(serialNumber):
-    ## Encrypt with DES
+    ## Encrypt with Triple DES
     key = b'Sixteen byte key'
     iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
     plaintext = str(serialNumber)
@@ -51,7 +51,7 @@ def encryptSerialNumber(serialNumber):
     return msg
 
 
-def writeCSV(msg, score):
+def writeCSV(msg, score=5):
     olderMember = False
     points = 0
     df = pandas.read_csv('data.csv')
@@ -67,9 +67,10 @@ def writeCSV(msg, score):
     print()
     if olderMember==False:
         df = df.append({'POINTS': str(score), 'SERIAL_NUMBER': str(msg)}, ignore_index=True)
-        print("\nDF: " + str(df))
+        #print("\nDF: " + str(df))
         df.to_csv('data.csv', index = None, header=True)
     print("\nThe winner win: ", score, " points.")
+    if points==0: points = 5
     print("\nThe winner has in total: ", points, " points.")
 
 def readCSV():
