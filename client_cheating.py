@@ -36,6 +36,8 @@ class client():
         self.players = [] #list of players
         self.dh = None
         self.dh_idx = None
+        self.tmp_tiles = []
+        self.tmp_arr = []
 
     def receiveData(self):
         while True:
@@ -177,9 +179,20 @@ class client():
             msg = {"action": "scrumbled", "deck": deck, "sign": sign}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "select":
-            tiles = self.player.pick_tile(data["deck"])
+            if data["from"] == "tm":
+                self.tmp_tiles, update = self.player.pick_tile(data["deck"])
+            else:
+                sk = [p[1].shared_key for p in self.players if p[0] == data["from"]][0]
+                verify = self.verify_sign(sk, data["sign"], data["deck"])
+                pick = self.symC.decrypt_message(data["deck"], sk)
+                self.tmp_tiles, update = self.player.pick_tile(pickle.loads(pick))
             next_player = random.choice(self.players)
-            msg = {"action": "selected", "deck": tiles, "next_player": next_player[0]}
+            c_tiles = self.symC.encrypt_message(pickle.dumps(self.tmp_tiles), next_player[1].shared_key)
+            sign = self.hmac_sign(c_tiles, next_player[1].shared_key)
+            msg = {"action": "selected", "deck": c_tiles, "next_player": next_player[0], "sign": sign, "update": update, "from": self.player.name}
+            self.sock.send(pickle.dumps(msg))
+        elif action == "s_deck":
+            msg = {"action": "s_deck", "deck": self.tmp_tiles}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "commitment":
             self.player.bitcommitment()
@@ -195,9 +208,23 @@ class client():
             msg = {"action": "deciphered"}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "fill_array":
-            arr = self.player.fill_array(data["arr"])
+            if data["from"] == "tm":
+                self.tmp_arr = self.player.fill_array(data["arr"])
+            else:
+                sk = [p[1].shared_key for p in self.players if p[0] == data["from"]][0]
+                verify = self.verify_sign(sk, data["sign"], data["arr"])
+                arr = self.symC.decrypt_message(data["arr"], sk)
+                self.tmp_arr = self.player.fill_array(pickle.loads(arr))
             next_player = random.choice(self.players)
-            msg = {"action": "filled", "arr": arr, "next_player": next_player[0]}
+            full = False
+            if True not in [a[1] == None for a in self.tmp_arr]:
+                full = True
+            array = self.symC.encrypt_message(pickle.dumps(self.tmp_arr), next_player[1].shared_key)
+            sign = self.hmac_sign(array, next_player[1].shared_key)
+            msg = {"action": "filled", "arr": array, "next_player": next_player[0], "from": self.player.name, "full": full, "sign": sign}
+            self.sock.send(pickle.dumps(msg))
+        elif data["action"] == "array":
+            msg = {"action": "array", "arr": self.tmp_arr}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "reveal_tiles":
             self.player.reveal_tiles(data["arr"])
@@ -209,10 +236,14 @@ class client():
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "decipher_piece":
             self.player.decipher_all([self.player.tmp_piece], data["key_map"])
-            msg = {"action": "de_anonymize", "idx": self.player.indexes[-1]}
+            idx = self.symC.encrypt_message(pickle.dumps([self.player.indexes[-1]]), self.dh.shared_key)
+            sign = self.hmac_sign(idx, self.dh.shared_key)
+            msg = {"action": "de_anonymize", "idx": idx, "sign": sign}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "de-anonymized":
-            self.player.insertInHand(data["piece"])
+            verify = self.hmac_sign(data["piece"], self.dh.shared_key)
+            piece = self.symC.decrypt_message(data["piece"], self.dh.shared_key)
+            self.player.insertInHand(pickle.loads(piece)[0])
             msg = {"action": "ready_to_play"}
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------
@@ -230,8 +261,6 @@ class client():
             if data["next_player"] == self.player.name:
                 player_name = Colors.BRed + "YOU" + Colors.Color_Off
             if "previous_player" in data.keys():
-                print("Previous Player")
-                print(data["previous_player"])
                 print("Piece: " + str(data["piece_played"]))
                 if data["previous_player"] == self.player.name:
                     print("It was my turn.")
@@ -278,7 +307,7 @@ class client():
                 return
             else:
                 return
-                
+
         elif action == "end_game":
             winner = data["winner"]
             if data["winner"] == self.player.name:
@@ -306,7 +335,8 @@ class client():
 
         elif action == "agreement_result":
             print("Result:" + str(data["agreement_result"]))
-
+            # if str(data["agreement_result"]) == "Aproved":
+            #     saveScore(self.player.score)
 
     def hmac_sign(self, msg, key):
         new_key = sha256(key).hexdigest()
