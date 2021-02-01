@@ -290,7 +290,7 @@ class TableManager:
                     self.game.tiles = pickle.loads(deck)
                     self.game.s_deck = pickle.loads(deck)
                     player = self.game.nextPlayer()
-                    msg = {"action": "select", "deck":self.game.s_deck}
+                    msg = {"action": "select", "deck":self.game.s_deck, "from": "tm"}
                     self.send_to(msg, player)
                     return
                 else:
@@ -304,20 +304,26 @@ class TableManager:
                     self.send_to(msg, player)
                     return
             if action == "selected":
-                if len(self.game.s_deck) != len(data["deck"]):
+                if data["update"] == True:
                     self.game.players[self.game.player_index].n_pieces += 1
-                self.game.s_deck = data["deck"]
-                if len(self.game.s_deck) == self.game.deck_len-(self.game.deck.pieces_per_player*self.game.nplayers):
-                    msg = {"action": "commitment"}
-                    player = self.game.currentPlayer()
+                    self.game.all_hand_pieces += 1
+                if self.game.all_hand_pieces == self.game.deck.pieces_per_player*self.game.nplayers:
+                    msg = {"action": "s_deck"}
+                    player = [p for p in self.game.players if p.socket == sock][0]
                     self.send_to(msg, player)
                     return
                 else:
                     for pl in self.game.players:
                         if pl.name == data["next_player"]:
                             player = pl
-                    msg = {"action": "select", "deck":self.game.s_deck}
+                    msg = {"action": "select", "deck":data["deck"], "from": data["from"], "sign": data["sign"]}
                     self.send_to(msg, player)
+                return
+            if action == "s_deck":
+                self.game.s_deck = data["deck"]
+                msg = {"action": "commitment"}
+                player = self.game.currentPlayer()
+                self.send_to(msg, player)
                 return
             if action == "commited":
                 player = self.game.currentPlayer()
@@ -349,25 +355,28 @@ class TableManager:
             if action == "deciphered":
                 self.deciphered += 1
                 if self.deciphered == self.game.max_players:
-                    msg = {"action": "fill_array", "arr": self.game.deck.idx}
+                    msg = {"action": "fill_array", "arr": self.game.deck.idx, "from": "tm"}
                     player = self.game.currentPlayer()
                     self.send_to(msg, player)
                 return
             if action == "filled":
-                self.game.deck.idx = data["arr"]
-                if None not in [i[1] for i in data["arr"]]:
-                    self.game.deck.de_anonimyze()
-                    msg = {"action": "reveal_tiles", "arr": self.game.deck.idx}
-                    #msg = {"action": "host_start_game", "msg": Colors.BYellow+"The Host started the game"+Colors.Color_Off}
-                    self.send_all(msg,sock)
-                    return pickle.dumps(msg)
+                if data["full"] == True:
+                    player = [p for p in self.game.players if p.socket == sock][0]
+                    msg = {"action": "array"}
+                    self.send_to(msg, player)
                 else:
                     for pl in self.game.players:
                         if pl.name == data["next_player"]:
                             player = pl
-                    msg = {"action": "fill_array", "arr":self.game.deck.idx}
+                    msg = {"action": "fill_array", "arr": data["arr"], "from": data["from"], "sign": data["sign"]}
                     self.send_to(msg, player)
                 return
+            if action == "array":
+                self.game.deck.idx = data["arr"]
+                self.game.deck.de_anonimyze()
+                msg = {"action": "reveal_tiles", "arr": self.game.deck.idx}
+                self.send_all(msg,sock)
+                return pickle.dumps(msg)
             if action == "ready":
                 self.ready += 1
                 if self.ready >= self.game.nplayers:

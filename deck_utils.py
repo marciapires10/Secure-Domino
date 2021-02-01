@@ -240,12 +240,12 @@ class Player:
                 ids = [id for id in range(len(self.hand2))]
                 tiles.append(self.hand2.pop(random.choice(ids)))
                 self.hand2.append(choice)
-            return tiles
+            return tiles, False
         else:
             ids = [id for id in range(len(tiles))]
             choice = tiles.pop(random.choice(ids))
             self.hand2.append(choice)
-        return tiles
+        return tiles, True
 
     def bitcommitment(self):
         self.r1 = os.urandom(64)
