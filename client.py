@@ -236,10 +236,14 @@ class client():
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "decipher_piece":
             self.player.decipher_all([self.player.tmp_piece], data["key_map"])
-            msg = {"action": "de_anonymize", "idx": self.player.indexes[-1]}
+            idx = self.symC.encrypt_message(pickle.dumps([self.player.indexes[-1]]), self.dh.shared_key)
+            sign = self.hmac_sign(idx, self.dh.shared_key)
+            msg = {"action": "de_anonymize", "idx": idx, "sign": sign}
             self.sock.send(pickle.dumps(msg))
         elif data["action"] == "de-anonymized":
-            self.player.insertInHand(data["piece"])
+            verify = self.hmac_sign(data["piece"], self.dh.shared_key)
+            piece = self.symC.decrypt_message(data["piece"], self.dh.shared_key)
+            self.player.insertInHand(pickle.loads(piece)[0])
             msg = {"action": "ready_to_play"}
             self.sock.send(pickle.dumps(msg))
         #-------------------------------------------------------------------------

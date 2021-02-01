@@ -402,8 +402,13 @@ class TableManager:
                     self.send_to(msg, player)
                     return
             if action == "de_anonymize":
-                piece = self.game.deck.deck2[int(data["idx"])]
-                msg = {"action": "de-anonymized", "piece": piece}
+                sk = [p[1].shared_key for p in self.a if p[0].socket == sock][0]
+                verify = self.verify_sign(sk, data["sign"], data["idx"])
+                idx = self.symC.decrypt_message(data["idx"], sk)
+                piece = self.game.deck.deck2[int(pickle.loads(idx)[0])]
+                pc = self.symC.encrypt_message(pickle.dumps([piece]), sk)
+                sign = self.hmac_sign(pc, sk)
+                msg = {"action": "de-anonymized", "piece": pc, "sign": sign}
                 player = self.game.currentPlayer()
                 self.pickup_keys.append([player.name, piece])
                 player.n_pieces += 1
