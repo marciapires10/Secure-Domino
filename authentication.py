@@ -13,7 +13,6 @@ lib = '/usr/local/lib/libpteidpkcs11.so'
 def authSerialNumber():
     serialNumber = ""
     try :
-
         pkcs11 = PyKCS11.PyKCS11Lib()
         pkcs11.load(lib)
         slots = pkcs11.getSlotList()
@@ -44,32 +43,25 @@ def encryptSerialNumber(serialNumber):
     key = b'Sixteen byte key'
     iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
     plaintext = str(serialNumber)
-    cipher = DES3.new(key, DES3.MODE_OFB, iv)
+    cipher = DES3.new(key, DES3.MODE_CBC, iv)
     pad_len = 8 - len(plaintext) % 8 # length of padding
-    padding = chr(pad_len) * pad_len # PKCS5 padding content
+    padding = chr(pad_len) * pad_len
     plaintext += padding
     msg = cipher.encrypt(plaintext)
-    #print(msg)
     return msg
-
-
-def dencryptSerialNumber(msg):
-    ## Decrypt with DES
-    key = b'Sixteen byte key'
-    iv = b'\xd1\xd1\x10\x9e\xaeB\xc9u'
-    cipher = DES3.new(key, DES3.MODE_OFB, iv)
-    return cipher.decrypt(msg).decode()
 
 
 def writeCSV(msg, score):
     olderMember = False
+    points = 0
     df = pandas.read_csv('data.csv')
     count = 0
     for r in df.values:
         if r[1] == str(msg):  #if the person already exist in our DB
             olderMember = True
             df.loc[count,'POINTS'] = df.loc[count,'POINTS']+score
-            print("\nDF: " + str(df))
+            points = df.loc[count,'POINTS']
+            #print("\nDF: " + str(df))
             df.to_csv('data.csv', index = None, header=True)
         count+=1
     print()
@@ -77,13 +69,13 @@ def writeCSV(msg, score):
         df = df.append({'POINTS': str(score), 'SERIAL_NUMBER': str(msg)}, ignore_index=True)
         print("\nDF: " + str(df))
         df.to_csv('data.csv', index = None, header=True)
-
+    print("\nThe winner win: ", score, " points.")
+    print("\nThe winner has in total: ", points, " points.")
 
 def readCSV():
     SN = authSerialNumber()
     df = pandas.read_csv('data.csv')
     #print(df)
-
     for r in df.values:
         if str(SN) == r[1]:
             print("\nThe cliente has: ", r[0], " points.")
@@ -101,7 +93,6 @@ def lerPrivKeyOfCard(challenge):
         slots = pkcs11.getSlotList()
         for slot in slots :
             if 'CARTAO DE CIDADAO' in pkcs11.getTokenInfo(slot).label:
-                # data = bytes('data to be signed', 'utf-8')
                 session = pkcs11.openSession(slot)
                 privKey = session.findObjects([(CKA_CLASS,CKO_PRIVATE_KEY), (CKA_LABEL,'CITIZEN AUTHENTICATION KEY')])[0]
                 signature = bytes(session.sign(privKey,challenge,Mechanism(CKM_SHA1_RSA_PKCS)))
@@ -127,11 +118,4 @@ def lerPublicKeyOfCard(signature, challenge):
 
         pubKey = load_der_public_key(bytes(pubKeyDer), default_backend())
         pubKey.verify( signature , challenge ,padding.PKCS1v15() , hashes.SHA1())
-
-# rr = saveScore(5)
-# print(rr)
-# readCSV()
-# print()
-# allPoints()
-#authSerialNumber()
 

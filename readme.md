@@ -13,7 +13,7 @@ Start clients running this command for each client
 >python3 client.py
  
 ## Scripts
-To use the scripts you need to  souce the script into your shell
+To use the scripts you need to souce the script into your shell
 >source script.sh
 
 Then you can use the scripts listed:
@@ -22,9 +22,6 @@ To start a client:
 
 To start the server:
 > s
-
-To get the client points:
-> points
 
 To get all clients points:
 > points

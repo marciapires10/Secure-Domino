@@ -248,9 +248,9 @@ class Player:
         return tiles
 
     def bitcommitment(self):
-        self.r1 = os.urandom(128)
-        self.r2 = os.urandom(128)
-        digest = hashes.Hash(hashes.SHA256(), default_backend())
+        self.r1 = os.urandom(64)
+        self.r2 = os.urandom(64)
+        digest = hashes.Hash(hashes.SHA512(), default_backend())
         digest.update(str(self.hand2).encode('utf-8'))
         digest.update(self.r1)
         digest.update(self.r2)
